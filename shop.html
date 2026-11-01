@@ -106,6 +106,7 @@ section{margin-top:44px}
 .chip.dk{background:rgba(244,241,235,.14);color:var(--bg)}
 .banner{background:var(--warnbg);color:var(--warn);border:1px solid var(--warnln);padding:13px 16px;border-radius:16px;font-size:14px;font-weight:500;margin:18px 0}
 .note{background:var(--s1);border:1px solid var(--line);color:var(--mute);padding:15px 18px;border-radius:16px;font-size:14px;margin-top:14px}
+.note.warn{background:var(--warnbg);border-color:var(--warnln);color:var(--warn)}
 .note.ok{background:var(--okbg);border-color:var(--okln);color:var(--ok)}
 .empty{padding:44px 22px;text-align:center;color:var(--mute)}
 .tile{width:42px;height:42px;border-radius:14px;display:inline-grid;place-items:center;font:700 17px var(--mono);flex:none;color:var(--hi);background:linear-gradient(160deg,var(--s2),var(--s1));border:1px solid var(--line2)}
@@ -340,6 +341,9 @@ section{margin-top:44px}
 .r-items{list-style:none;padding:0;margin:0 0 14px;color:var(--hi);font-size:18px}
 .r-items li{padding:8px 0;border-top:1px solid rgba(13,76,60,.1)}
 .r-items b{display:inline-block;min-width:30px;font-family:var(--mono)}
+.r-items li.gv{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.r-note{font-size:14px;margin:0 0 14px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.55);color:var(--hi)}
+.r-acts{display:grid;gap:8px}
 .r-st{font-size:13px;color:var(--mute);display:flex;gap:8px;align-items:center}
 .ow{display:flex;gap:14px;align-items:center;width:100%;text-align:left;padding:13px 0;border-top:1px solid var(--line);transition:opacity .2s}
 .ow:hover{opacity:.8}
@@ -349,7 +353,7 @@ section{margin-top:44px}
 .agg{display:flex;flex-wrap:wrap;gap:8px}
 .agg span{background:var(--s2);color:var(--hi);padding:9px 15px;border-radius:12px;font-size:15px}
 .agg b{margin-right:8px;font-family:var(--mono)}
-.board{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:18px}
 .col{background:rgba(231,227,216,.5);border:1px solid var(--line);border-radius:24px;padding:12px;min-height:180px}
 .col-h{display:flex;justify-content:space-between;padding:6px 8px 12px;font-size:14px;color:var(--hi)}
 .col-h span{color:var(--mute);font:600 13px var(--mono)}
@@ -517,7 +521,7 @@ function load(){try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.v===8)re
 let S = load();
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
 window.addEventListener('storage',e=>{if(e.key===K){S=load();render()}});
-const ui = {pad:'',found:null,q:'',demo:false,dockMin:false,sheet:null,pay:{},toast:'',resetArm:false};
+const ui = {give:{},pad:'',found:null,q:'',demo:false,dockMin:false,sheet:null,pay:{},toast:'',resetArm:false};
 function resetShared(){const f=fresh();S.day=f.day;S.now=f.now;S.orders=[];S.strikes={};S.shops=f.shops}
 const newId = () => Date.now()*1000+Math.floor(Math.random()*1000);
 
@@ -543,9 +547,15 @@ function apply(ev){
   const o=ev.id&&getO(ev.id);
   switch(ev.t){
     case 'orders':ev.list.forEach(x=>{if(!S.orders.some(y=>y.id===x.id))S.orders.push(x)});break;
-    case 'st':if(o&&isActive(o)){o.status=ev.st;if(ev.st==='collected')o.doneAt=ev.at}break;
+    case 'st':if(o&&isActive(o)){o.status=ev.st;o.hold=false}break;
+    case 'hold':if(o&&isActive(o))o.hold=!!ev.v;break;
+    case 'give':if(o&&isActive(o)){
+      o.items.forEach((it,i)=>{if((ev.d[i]||0)>dOf(it))it.d=Math.min(it.q,ev.d[i])});
+      o.cashPaid=Math.max(o.cashPaid||0,ev.paid||0);o.hold=false;
+      if(leftOf(o)===0){o.status='collected';o.doneAt=ev.at}
+    }break;
     case 'coming':if(o&&isActive(o)){o.coming=true;o.comingAt=ev.at}break;
-    case 'cancel':if(o&&o.status==='placed')o.status='cancelled';break;
+    case 'cancel':if(o&&o.status==='placed'&&!isPart(o))o.status='cancelled';break;
     case 'sold':if(S.shops[ev.sid]){if(ev.v)S.shops[ev.sid].sold[ev.item]=true;else delete S.shops[ev.sid].sold[ev.item]}break;
     case 'shop':if(S.shops[ev.sid])S.shops[ev.sid][ev.k]=ev.v;break;
     case 'clock':S.day=ev.day;S.now=ev.now;break;
@@ -578,9 +588,14 @@ const fmt = m => {let h=Math.floor(m/60),mm=m%60;const ap=h>=12?'PM':'AM';h=h%12
 const hm = m => fmt(m).slice(0,-3);
 const rs = n => 'Rs '+n;
 const isActive = o => ['placed','cooking','ready'].includes(o.status);
+const dOf = it => it.d||0;
+const leftOf = o => o.items.reduce((t,i)=>t+i.q-dOf(i),0);
+const isPart = o => isActive(o)&&o.items.some(i=>dOf(i)>0)&&leftOf(o)>0;
 const dayLabel = d => d===S.day?'Today':d===S.day-1?'Yesterday':(S.day-d)+' days ago';
 const ordering = () => S.now<CUTOFF;
 const todays = sid => S.orders.filter(o=>o.shop===sid&&o.day===S.day);
+// Today's orders plus any earlier order that was only partly handed over: its token stays open.
+const liveOf = sid => S.orders.filter(o=>o.shop===sid&&(o.day===S.day||isPart(o)));
 const usedToday = sid => todays(sid).filter(o=>o.status!=='cancelled').length;
 const getO = id => S.orders.find(o=>o.id===+id);
 const strikes = () => S.strikes[S.roll]||0;
@@ -589,13 +604,15 @@ function cartLines(sid){const s=shopOf(sid),c=cartOf(sid),sold=S.shops[sid].sold
 const cartTotal = sid => cartLines(sid).reduce((a,l)=>a+l.price*l.qty,0);
 const cartCount = sid => cartLines(sid).reduce((a,l)=>a+l.qty,0);
 const plural = (n,w) => n+' '+w+(n===1?'':'s');
-const itemsText = o => o.items.map(i=>i.q+' x '+esc(i.n)).join(', ');
+const itemsText = o => o.items.filter(i=>!isPart(o)||i.q>dOf(i)).map(i=>(isPart(o)?i.q-dOf(i):i.q)+' x '+esc(i.n)).join(', ');
 const tile = (s,size) => `<span class="tile${size?' '+size:''}">${s.ini}</span>`;
 const veg = it => `<span class="veg ${it.veg?'':'nv'}" title="${it.veg?'Veg':'Non veg'}"></span>`;
 function whyClosed(sid){const st=S.shops[sid];if(!ordering())return 'Ordering closed at '+fmt(CUTOFF);if(!st.open)return 'Not taking orders right now';if(usedToday(sid)>=st.cap)return 'Full for today';return ''}
 const payChip = o => o.pay==='upi'?'<span class="chip ok">Paid by GPay</span>':`<span class="chip warn">Pay ${rs(o.total)} at counter</span>`;
-function stChip(o){const m={placed:['','Placed'],cooking:['','Cooking'],ready:['ok','Ready'],collected:['light','Collected'],cancelled:['line','Cancelled'],expired:['bad','Not collected']}[o.status];return `<span class="chip ${m[0]}">${m[1]}</span>`}
+function stChip(o){const x=(o.hold&&isActive(o)?'<span class="chip warn">On hold</span>':'')+(isPart(o)?'<span class="chip warn">Partly collected</span>':'');if(x)return x;const m={placed:['','Placed'],cooking:['','Cooking'],ready:['ok','Ready'],collected:['light','Collected'],cancelled:['line','Cancelled'],expired:['bad','Not collected']}[o.status];return `<span class="chip ${m[0]}">${m[1]}</span>`}
 function statusText(o){
+  if(o.hold)return 'On hold, the rest is still being prepared';
+  if(isPart(o))return 'Partly collected, '+plural(leftOf(o),'item')+' still to collect';
   if(o.status==='placed')return o.pay==='cash'&&!o.coming?'Held until you tap I\'m coming':o.coming?'On the way. Shop is getting it ready':'Order received';
   return {cooking:'Being prepared',ready:'Ready at the counter'}[o.status]||'';
 }
@@ -617,7 +634,7 @@ const ICON = {
 function sweep(){
   let ch=false;
   S.orders.forEach(o=>{
-    if(isActive(o)&&(o.day<S.day||S.now>LUNCH_END)){
+    if(isActive(o)&&!isPart(o)&&(o.day<S.day||S.now>LUNCH_END)){
       o.status='expired';ch=true;
       if(o.pay==='cash'){S.strikes[o.roll]=(S.strikes[o.roll]||0)+1;o.strike=true}
     }
@@ -664,14 +681,14 @@ function placeOrder(sid){
   if(whyClosed(sid)||!cartCount(sid))return;
   if(payMethod(sid)==='upi'){ui.sheet={type:'pay',sid};render()}else createOrder(sid,false);
 }
-function newToken(sid){const used=new Set(todays(sid).map(o=>o.token));let t;do{t=String(1000+Math.floor(Math.random()*9000))}while(used.has(t));return t}
+function newToken(sid){const used=new Set(liveOf(sid).map(o=>o.token));let t;do{t=String(1000+Math.floor(Math.random()*9000))}while(used.has(t));return t}
 function createOrder(sid,paid){
   const lines=cartLines(sid);
   const o={id:newId(),day:S.day,roll:S.roll,shop:sid,items:lines.map(l=>({id:l.id,n:l.name,p:l.price,q:l.qty})),total:cartTotal(sid),pay:paid?'upi':'cash',paid,status:'placed',coming:false,token:newToken(sid),at:S.now};
   S.orders.push(o);S.carts[sid]={};ui.sheet=null;save();emit({t:'orders',list:[o]});go('order-'+o.id);
 }
 function comingNow(id){const o=getO(id);o.coming=true;o.comingAt=S.now;save();emit({t:'coming',id:o.id,at:S.now});render()}
-function cancelOrder(id){const o=getO(id);if(o.status!=='placed'||S.now>CANCEL_UNTIL||o.day!==S.day)return;o.status='cancelled';save();emit({t:'cancel',id:o.id});render()}
+function cancelOrder(id){const o=getO(id);if(o.status!=='placed'||isPart(o)||S.now>CANCEL_UNTIL||o.day!==S.day)return;o.status='cancelled';save();emit({t:'cancel',id:o.id});render()}
 function orderAgain(id){
   const o=getO(id),s=shopOf(o.shop),st=S.shops[o.shop],c={};let left=0;
   o.items.forEach(i=>{if(itemOf(s,i.id)&&!st.sold[i.id])c[i.id]=(c[i.id]||0)+i.q;else left++});
@@ -705,12 +722,26 @@ function padKey(k){
   render();
 }
 function checkToken(){
-  const o=todays(S.auth).filter(o=>o.token===ui.pad).sort((a,b)=>b.id-a.id)[0];
+  const o=liveOf(S.auth).filter(o=>o.token===ui.pad).sort((a,b)=>b.id-a.id)[0];
   ui.found={t:ui.pad,o:o?o.id:null};
 }
 function loadToken(t){ui.pad=t;checkToken();go('shop')}
-function handOver(id){const o=getO(id);if(!o||!isActive(o))return;o.status='collected';o.doneAt=S.now;save();emit({t:'st',id:o.id,st:'collected',at:S.now});ui.pad='';ui.found={done:o.token};render()}
-function advance(id,st){const o=getO(id);if(!o||!isActive(o))return;o.status=st;save();emit({t:'st',id:o.id,st});render()}
+function giveOf(o){const g=ui.give[o.id];return o.items.map((it,i)=>{const r=it.q-dOf(it);return g&&g[i]!=null?Math.min(r,Math.max(0,g[i])):r})}
+function giveAdj(id,i,d){const o=getO(id),g=giveOf(o),r=o.items[i].q-dOf(o.items[i]);g[i]=Math.max(0,Math.min(r,g[i]+d));ui.give[id]=g;render()}
+function handOver(id){
+  const o=getO(id);if(!o||!isActive(o))return;
+  const g=giveOf(o);if(!g.some(x=>x>0))return;
+  const amt=o.items.reduce((t,it,i)=>t+it.p*g[i],0);
+  o.items.forEach((it,i)=>{if(g[i])it.d=dOf(it)+g[i]});
+  if(o.pay==='cash')o.cashPaid=(o.cashPaid||0)+amt;
+  o.hold=false;
+  const full=leftOf(o)===0;
+  if(full){o.status='collected';o.doneAt=S.now}
+  save();emit({t:'give',id:o.id,d:o.items.map(dOf),paid:o.cashPaid||0,at:S.now});
+  delete ui.give[o.id];ui.pad='';ui.found=full?{done:o.token}:{part:o.id,t:o.token};render()
+}
+function holdOrder(id,v){const o=getO(id);if(!o||!isActive(o))return;o.hold=v;save();emit({t:'hold',id:o.id,v});if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}render()}
+function advance(id,st){const o=getO(id);if(!o||!isActive(o))return;o.status=st;o.hold=false;save();emit({t:'st',id:o.id,st});render()}
 function toggleSold(id){const st=S.shops[S.auth],v=!st.sold[id];if(v)st.sold[id]=true;else delete st.sold[id];save();emit({t:'sold',sid:S.auth,item:id,v});render()}
 function setSpecial(id){S.shops[S.auth].special=id;save();emit({t:'shop',sid:S.auth,k:'special',v:id});render()}
 function setField(k,v){
@@ -790,13 +821,13 @@ function daybar(){
   <div class="db-labels"><span style="left:0"><b>${hm(a)}</b>Ordering open</span><span style="left:${p(CUTOFF)}%"><b>${hm(CUTOFF)}</b>Orders close</span><span style="left:${p(LUNCH_START)}%"><b>${hm(LUNCH_START)}</b>Pickup starts</span><span style="left:100%"><b>${hm(LUNCH_END)}</b>Lunch ends</span></div></div>`;
 }
 function home(){
-  const act=S.orders.filter(o=>o.roll===S.roll&&o.day===S.day&&isActive(o)).sort((a,b)=>b.id-a.id);
+  const act=S.orders.filter(o=>o.roll===S.roll&&isActive(o)&&(o.day===S.day||isPart(o))).sort((a,b)=>b.id-a.id);
   const open=ordering();
   return `<main class="page"><section class="hero"><p class="eyebrow"><span class="live ${open?'':'off'}"></span>${open?'Ordering open till '+fmt(CUTOFF):'Ordering closed for today'}</p>
   <h1 class="display">What's for lunch<br>today?</h1>
   <p class="lead">${open?`Order by <b>${fmt(CUTOFF)}</b>. Collect any time from ${fmt(LUNCH_START)} to ${fmt(LUNCH_END)}.`:act.length?`Collect your order any time till <b>${fmt(LUNCH_END)}</b>.`:'Ordering opens again tomorrow morning. You can still browse the menus.'}</p>
   ${daybar()}</section>
-  ${act.length?`<section><div class="sec-h"><h2>Your ${act.length>1?'tokens':'token'}</h2></div><div class="tokens">${act.map(o=>{const s=shopOf(o.shop);return `<a class="live-card" href="#order-${o.id}"><div><div class="lc-top">${s.name}</div><div class="lc-token mono">${o.token}</div><div class="lc-sub">${statusText(o)}</div></div><div class="lc-right"><span class="chip dk">${o.pay==='upi'?'Paid by GPay':'Pay '+rs(o.total)+' at counter'}</span><span class="lc-go">Open ${ICON.chev}</span></div></a>`}).join('')}</div></section>`:''}
+  ${act.length?`<section><div class="sec-h"><h2>Your ${act.length>1?'tokens':'token'}</h2></div><div class="tokens">${act.map(o=>{const s=shopOf(o.shop);return `<a class="live-card" href="#order-${o.id}"><div><div class="lc-top">${s.name}</div><div class="lc-token mono">${o.token}</div><div class="lc-sub">${statusText(o)}</div></div><div class="lc-right"><span class="chip dk">${o.pay==='upi'?'Paid by GPay':'Pay '+rs(o.total-(o.cashPaid||0))+' at counter'}</span><span class="lc-go">Open ${ICON.chev}</span></div></a>`}).join('')}</div></section>`:''}
   <section><div class="sec-h"><h2>Shops</h2><span class="mute small">Tasty Time and Campus Kitchen</span></div><div class="shops">${SHOPS.map(shopCard).join('')}</div></section>
   ${footer()}</main>`;
 }
@@ -876,19 +907,21 @@ function orderPage(id){
     if(o.coming)act+=`<div class="note ok">${s.name} knows you are on the way since ${fmt(o.comingAt)}.</div>`;
     else if(S.now>=COMING_FROM)act+=`<button class="btn lg ok" onclick="comingNow(${o.id})">I'm coming</button><p class="fine center">Tap when you leave class. ${o.pay==='cash'?s.name+' starts cooking your order now.':s.name+' moves your order to the top.'}</p>`;
     else act+=`<div class="note">The I'm coming button opens at ${fmt(COMING_FROM)}. Tap it when you leave class${o.pay==='cash'?' so '+s.name+' starts cooking':''}.</div>`;
-    if(o.status==='placed'&&S.now<=CANCEL_UNTIL&&o.day===S.day)act+=`<button class="btn ghost lg" onclick="cancelOrder(${o.id})">Cancel order${o.paid?', full refund':''}</button><p class="fine center">You can cancel till ${fmt(CANCEL_UNTIL)}.</p>`;
-    else if(o.status==='placed')act+=`<p class="fine center">Cancelling closed at ${fmt(CANCEL_UNTIL)}.</p>`;
+    if(o.status==='placed'&&!isPart(o)&&S.now<=CANCEL_UNTIL&&o.day===S.day)act+=`<button class="btn ghost lg" onclick="cancelOrder(${o.id})">Cancel order${o.paid?', full refund':''}</button><p class="fine center">You can cancel till ${fmt(CANCEL_UNTIL)}.</p>`;
+    else if(o.status==='placed'&&!isPart(o))act+=`<p class="fine center">Cancelling closed at ${fmt(CANCEL_UNTIL)}.</p>`;
   }
+  if(a&&o.hold)act=`<div class="note warn">On hold. ${s.name} is still preparing part of your order. Come when it shows Ready. Your token stays valid.</div>`+act;
+  if(a&&isPart(o))act=`<div class="note ok">Collected so far: ${o.items.filter(i=>dOf(i)).map(i=>dOf(i)+' x '+esc(i.n)).join(', ')}. Still to collect: ${o.items.filter(i=>i.q>dOf(i)).map(i=>(i.q-dOf(i))+' x '+esc(i.n)).join(', ')}. The same token works till everything is collected.</div>`+act;
   const steps=[['placed','Order placed'],['cooking','Being prepared'],['ready','Ready at the counter'],['collected','Collected']];
   const idx={placed:0,cooking:1,ready:2,collected:3}[o.status];
   const held=o.status==='placed'&&o.pay==='cash'&&!o.coming;
   return `<main class="page narrow"><button class="backlink" onclick="back('')">${ICON.back} Home</button>
   <div class="tk ${a?'':'off'}"><div class="tk-top">${tile(s)}<div><b>${s.name}</b><div class="small">${dayLabel(o.day)} at ${fmt(o.at)}</div></div>${a?`<span class="chip dk">${o.pay==='upi'?'Paid by GPay':'Pay '+rs(o.total)+' at counter'}</span>`:stChip(o)}</div>
   <div class="tk-lbl">${a?'Your token':'Token'}</div><div class="tk-num">${o.token}</div>
-  <div class="tk-sub">${a?`Say this number at the ${s.name} counter. Collect any time till ${fmt(LUNCH_END)}, handed over in about 2 minutes.`:fin}</div></div>
+  <div class="tk-sub">${a?(isPart(o)?`Say this number again at the ${s.name} counter for the rest. This token stays open till every item is collected.`:`Say this number at the ${s.name} counter. Collect any time till ${fmt(LUNCH_END)}, handed over in about 2 minutes.`):fin}</div></div>
   ${act}
   ${idx!==undefined?`<div class="card pad tl">${steps.map(([k,l],i)=>`<div class="tl-s ${i<idx?'done':i===idx?'cur':''}"><span class="tl-d"></span><span>${l}${i===0&&held?'<em>Held until you tap I\'m coming</em>':''}</span></div>`).join('')}</div>`:''}
-  <div class="card list" style="margin-top:14px">${o.items.map(i=>`<div class="it"><div class="it-b"><div class="it-n">${i.q} x ${esc(i.n)}</div></div><b class="lt">${rs(i.p*i.q)}</b></div>`).join('')}<div class="it tot"><div class="it-b">Total</div><b class="lt">${rs(o.total)}</b></div></div>
+  <div class="card list" style="margin-top:14px">${o.items.map(i=>`<div class="it"><div class="it-b"><div class="it-n">${i.q} x ${esc(i.n)}</div>${dOf(i)?`<div class="it-p">${dOf(i)} of ${i.q} collected</div>`:''}</div><b class="lt">${rs(i.p*i.q)}</b></div>`).join('')}<div class="it tot"><div class="it-b">Total</div><b class="lt">${rs(o.total)}</b></div></div>
   ${!a?`<button class="btn ghost lg" onclick="orderAgain(${o.id})">Order this again</button>`:''}</main>`;
 }
 
@@ -933,9 +966,9 @@ function shopPick(){
   <div class="pick">${SHOPS.map(s=>`<button class="shop" onclick="viewAs('${s.id}')"><div class="shop-top">${tile(s,'lg')}<div class="shop-b"><div class="shop-n">${s.name}</div><div class="mute small">${s.tag}</div></div><span class="chev">${ICON.chev}</span></div></button>`).join('')}</div></main>`;
 }
 function kpis(){
-  const t=todays(S.auth),act=t.filter(isActive),col=t.filter(o=>o.status==='collected');
+  const t=liveOf(S.auth),act=t.filter(isActive),col=t.filter(o=>o.status==='collected');
   return `<div class="kpis"><div class="kpi"><span>Active orders</span><b>${act.length}</b></div><div class="kpi"><span>On the way</span><b>${act.filter(o=>o.coming).length}</b></div>
-  <div class="kpi"><span>Cash to collect</span><b>${rs(act.filter(o=>o.pay==='cash').reduce((a,o)=>a+o.total,0))}</b></div>
+  <div class="kpi"><span>Cash to collect</span><b>${rs(act.filter(o=>o.pay==='cash').reduce((a,o)=>a+o.total-(o.cashPaid||0),0))}</b></div>
   <div class="kpi"><span>Handed over</span><b>${col.length}</b><small>${rs(col.reduce((a,o)=>a+o.total,0))} today</small></div></div>`;
 }
 function resultHtml(){
@@ -943,42 +976,53 @@ function resultHtml(){
   const bad=(t,d)=>`<div class="result bad"><div class="r-big">${t}</div><p style="margin:0">${d}</p></div>`;
   if(!f)return `<div class="result idle"><b>Waiting for a token</b><p>Ask the student for their 4 digit token. PAID or the cash amount shows here straight away.</p></div>`;
   if(f.done)return `<div class="result done"><div class="r-lbl mute">Token ${f.done}</div><div class="r-big">Handed over</div><p class="mute" style="margin:0">This token is now used and cannot be used again.</p></div>`;
+  if(f.part){const q=getO(f.part);return `<div class="result done"><div class="r-lbl mute">Token ${f.t}</div><div class="r-big">Part handed over</div><p class="mute" style="margin:0">Still to collect: ${q?itemsText(q):''}. The same token works till everything is collected.</p></div>`}
   const o=f.o&&getO(f.o);
-  if(!o)return bad('No order with token '+esc(f.t),'There is no order with this number at this shop today. Check the number with the student.');
-  if(o.status==='collected')return bad('Already used','Token '+o.token+' was handed over at '+fmt(o.doneAt)+'.');
+  if(!o)return bad('No order with token '+esc(f.t),'There is no open order with this number at this shop. Check the number with the student.');
+  if(o.status==='collected')return bad('Already used','Token '+o.token+' was fully handed over at '+fmt(o.doneAt)+'.');
   if(o.status==='cancelled')return bad('Cancelled','The student cancelled this order'+(o.paid?' and was refunded':'')+'.');
   if(o.status==='expired')return bad('Expired','Lunch ended before this order was collected.');
-  const paid=o.pay==='upi';
-  return `<div class="result ${paid?'paid':'cash'}"><div class="r-lbl">Token ${o.token}, ${esc(o.roll)}</div><div class="r-big">${paid?'PAID by GPay':'COLLECT '+rs(o.total)+' CASH'}</div>
-  <ul class="r-items">${o.items.map(i=>`<li><b>${i.q}</b>${esc(i.n)}</li>`).join('')}</ul><div class="r-st">Status ${stChip(o)}${o.coming?'<span class="chip ok">On the way</span>':''}</div>
-  <button class="btn lg ${paid?'ok':'warn'}" onclick="handOver(${o.id})">${paid?'Hand over':'Cash received, hand over'}</button></div>`;
+  const paid=o.pay==='upi',g=giveOf(o),sel=g.reduce((a,b)=>a+b,0),amt=o.items.reduce((t,it,i)=>t+it.p*g[i],0),rest=leftOf(o)-sel,multi=leftOf(o)>1;
+  const rows=o.items.map((it,i)=>{const r=it.q-dOf(it);if(!r)return '';return multi?`<li class="gv"><span><b>${g[i]}</b>of ${r} ${esc(it.n)}</span><div class="step sm"><button aria-label="Give one less" onclick="giveAdj(${o.id},${i},-1)">−</button><span>${g[i]}</span><button aria-label="Give one more" onclick="giveAdj(${o.id},${i},1)">+</button></div></li>`:`<li><b>${r}</b>${esc(it.n)}</li>`}).join('');
+  const note=(o.hold?'<div class="r-note"><b>On hold.</b> Part of this order is not ready yet. The student waits or comes back, same token.</div>':'')+(isPart(o)?'<div class="r-note">Partly collected earlier. This is what is still owed.</div>':'')+(multi?'<div class="r-note">Set how many of each item you hand over now. Whatever is left stays open on the same token.</div>':'');
+  return `<div class="result ${paid?'paid':'cash'}"><div class="r-lbl">Token ${o.token}, ${esc(o.roll)}</div><div class="r-big">${paid?'PAID by GPay':sel?'COLLECT '+rs(amt)+' CASH':'Nothing selected'}</div>
+  ${note}<ul class="r-items">${rows}</ul><div class="r-st" style="margin-bottom:14px">Status ${stChip(o)}${o.coming?'<span class="chip ok">On the way</span>':''}</div>
+  <div class="r-acts"><button class="btn lg ${paid?'ok':'warn'}" ${sel?'':'disabled'} onclick="handOver(${o.id})">${rest>0?'Hand over '+sel+' now, '+rest+' later':paid?'Hand over':'Cash received, hand over'}</button>
+  ${o.hold?`<button class="btn ghost lg" onclick="advance(${o.id},'ready')">Fully ready, take off hold</button>`:`<button class="btn ghost lg" onclick="holdOrder(${o.id},true)">Put on hold, not fully ready</button>`}</div></div>`;
+}
+function waitCard(){
+  const w=liveOf(S.auth).filter(o=>isActive(o)&&(o.hold||isPart(o))).sort((a,b)=>a.id-b.id);
+  if(!w.length)return '';
+  return `<div class="card pad"><div class="sec-h"><h3>Waiting for the rest</h3><span class="mute small mono">${w.length}</span></div>${w.map(o=>`<button class="ow" onclick="loadToken('${o.token}')"><span class="mono">${o.token}</span><span class="ow-b">${itemsText(o)}</span>${stChip(o)}</button>`).join('')}</div>`;
 }
 function counterView(){
-  const onway=todays(S.auth).filter(o=>isActive(o)&&o.coming).sort((a,b)=>a.comingAt-b.comingAt||a.id-b.id);
+  const onway=liveOf(S.auth).filter(o=>isActive(o)&&o.coming&&!o.hold).sort((a,b)=>a.comingAt-b.comingAt||a.id-b.id);
   const keys=['1','2','3','4','5','6','7','8','9','C','0','D'];
   return `${kpis()}<div class="counter"><div class="card pad"><div class="lbl">Token number</div>
   <div class="tbox">${[0,1,2,3].map(i=>`<span class="${ui.pad[i]?'on':i===ui.pad.length?'cur':''}">${ui.pad[i]||''}</span>`).join('')}</div>
   <div class="keys">${keys.map(k=>`<button class="key ${k==='C'||k==='D'?'fn':''}" onclick="padKey('${k}')">${k==='C'?'Clear':k==='D'?'Delete':k}</button>`).join('')}</div>
   <p class="fine center">Use the keypad or the keyboard. It checks on the 4th digit.</p></div>
-  <div class="rcol">${resultHtml()}<div class="card pad"><div class="sec-h"><h3>On the way now</h3><span class="mute small mono">${onway.length}</span></div>
+  <div class="rcol">${resultHtml()}${waitCard()}<div class="card pad"><div class="sec-h"><h3>On the way now</h3><span class="mute small mono">${onway.length}</span></div>
   ${onway.length?onway.map(o=>`<button class="ow" onclick="loadToken('${o.token}')"><span class="mono">${o.token}</span><span class="ow-b">${itemsText(o)}</span>${o.pay==='upi'?'<span class="chip ok">Paid</span>':`<span class="chip warn">${rs(o.total)} cash</span>`}</button>`).join(''):'<p class="mute small" style="margin:0">Students who tap I\'m coming show up here, oldest first.</p>'}</div></div></div>`;
 }
 function kcard(o){
-  const held=o.status==='placed'&&o.pay==='cash'&&!o.coming;
-  const btn=o.status==='placed'?(held?'<span class="mute small">Waiting for student</span>':`<button class="btn sm" onclick="advance(${o.id},'cooking')">Start cooking</button>`):o.status==='cooking'?`<button class="btn sm" onclick="advance(${o.id},'ready')">Mark ready</button>`:`<button class="btn sm ok" onclick="loadToken('${o.token}')">Hand over</button>`;
-  return `<div class="kc ${o.coming?'on-way':''}"><div class="kc-t"><span class="mono">${o.token}</span>${o.coming?'<span class="chip ok">On the way</span>':''}${o.pay==='upi'?'<span class="chip">Paid</span>':`<span class="chip warn">${rs(o.total)} cash</span>`}</div>
-  <div class="kc-i">${o.items.map(i=>`<div><b>${i.q}</b>${esc(i.n)}</div>`).join('')}</div><div class="kc-f"><span class="mono">${esc(o.roll)}</span>${btn}</div></div>`;
+  const held=o.status==='placed'&&o.pay==='cash'&&!o.coming&&!o.hold;
+  const hb=o.hold||held?'':`<button class="btn sm ghost" onclick="holdOrder(${o.id},true)">Hold</button>`;
+  const main=o.hold?`<button class="btn sm" onclick="advance(${o.id},'ready')">Mark ready</button>`:o.status==='placed'?(held?'<span class="mute small">Waiting for student</span>':`<button class="btn sm" onclick="advance(${o.id},'cooking')">Start cooking</button>`):o.status==='cooking'?`<button class="btn sm" onclick="advance(${o.id},'ready')">Mark ready</button>`:`<button class="btn sm ok" onclick="loadToken('${o.token}')">Hand over</button>`;
+  const btn=`<span style="display:flex;gap:6px">${hb}${main}</span>`;
+  return `<div class="kc ${o.coming?'on-way':''}"><div class="kc-t"><span class="mono">${o.token}</span>${o.coming?'<span class="chip ok">On the way</span>':''}${isPart(o)?'<span class="chip warn">Partly collected</span>':''}${o.pay==='upi'?'<span class="chip">Paid</span>':`<span class="chip warn">${rs(o.total-(o.cashPaid||0))} cash</span>`}</div>
+  <div class="kc-i">${o.items.filter(i=>i.q>dOf(i)).map(i=>`<div><b>${i.q-dOf(i)}</b>${esc(i.n)}</div>`).join('')}</div><div class="kc-f"><span class="mono">${esc(o.roll)}</span>${btn}</div></div>`;
 }
 function kitchenView(){
-  const t=todays(S.auth),act=t.filter(isActive);
-  const cook=act.filter(o=>(o.status==='placed'||o.status==='cooking')&&(o.pay==='upi'||o.coming));
+  const t=liveOf(S.auth),act=t.filter(isActive);
+  const cook=act.filter(o=>(o.status==='placed'||o.status==='cooking')&&(o.pay==='upi'||o.coming||o.hold));
   const held=act.filter(o=>o.status==='placed'&&o.pay==='cash'&&!o.coming).length;
-  const agg={};cook.forEach(o=>o.items.forEach(i=>agg[i.n]=(agg[i.n]||0)+i.q));
-  const col=(st,title)=>{const l=act.filter(o=>o.status===st).sort((a,b)=>(b.coming-a.coming)||(a.id-b.id));return `<div class="col"><div class="col-h"><b>${title}</b><span>${l.length}</span></div>${l.map(kcard).join('')||'<p class="mute small" style="padding:0 8px;margin:0">Nothing here</p>'}</div>`};
+  const agg={};cook.forEach(o=>o.items.forEach(i=>{const r=i.q-dOf(i);if(r)agg[i.n]=(agg[i.n]||0)+r}));
+  const col=(st,title)=>{const l=act.filter(o=>st==='hold'?o.hold:(o.status===st&&!o.hold)).sort((a,b)=>(b.coming-a.coming)||(a.id-b.id));return `<div class="col"><div class="col-h"><b>${title}</b><span>${l.length}</span></div>${l.map(kcard).join('')||'<p class="mute small" style="padding:0 8px;margin:0">Nothing here</p>'}</div>`};
   const done=t.filter(o=>!isActive(o)).sort((a,b)=>b.id-a.id);
   return `${kpis()}<div class="card pad"><div class="sec-h"><h3>To cook now</h3><span class="mute small">${held?plural(held,'cash order')+' held until the student taps I\'m coming':''}</span></div>
   ${Object.keys(agg).length?`<div class="agg">${Object.entries(agg).sort((a,b)=>b[1]-a[1]).map(([n,q])=>`<span><b>${q}</b>${esc(n)}</span>`).join('')}</div>`:'<p class="mute small" style="margin:0">Nothing to cook right now.</p>'}</div>
-  <div class="board">${col('placed','New')}${col('cooking','Cooking')}${col('ready','Ready')}</div>
+  <div class="board">${col('placed','New')}${col('cooking','Cooking')}${col('ready','Ready')}${col('hold','On hold')}</div>
   ${done.length?`<h2 class="h2">Finished today</h2><div class="card tblwrap"><table class="tbl"><thead><tr><th>Token</th><th>Register no</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>${done.map(o=>`<tr><td class="mono" style="color:var(--hi)">${o.token}</td><td class="mono">${esc(o.roll)}</td><td>${itemsText(o)}</td><td class="mono">${rs(o.total)}</td><td>${o.pay==='upi'?'GPay':'Cash'}</td><td>${stChip(o)}</td></tr>`).join('')}</tbody></table></div>`:''}`;
 }
 function shopMenuView(){
@@ -1003,7 +1047,7 @@ function shopDash(r){
   const v=views[r.name]?r.name:'counter';
   const titles={counter:'Counter',orders:'Kitchen',menu:'Menu',settings:'Settings'};
   const links=[['counter','Counter','shop'],['orders','Kitchen','shop-orders'],['menu','Menu','shop-menu'],['settings','Settings','shop-settings']];
-  const pending=todays(S.auth).filter(o=>o.status==='placed'||o.status==='cooking').length;
+  const pending=liveOf(S.auth).filter(o=>o.status==='placed'||o.status==='cooking').length;
   const status=!st.open?'Not taking orders':ordering()?'Taking orders till '+fmt(CUTOFF):'Ordering closed';
   return `<div class="dash"><aside class="side"><div class="brandbox">${tile(s,'lg')}<div><b>${s.name}</b><div class="mute small">Counter</div></div></div>
   <nav>${links.map(([k,l,h])=>`<a href="#${h}" class="${k===v?'on':''}">${ICON[k]}<span>${l}</span>${k==='orders'&&pending?`<em>${pending}</em>`:''}</a>`).join('')}</nav>
