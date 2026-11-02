@@ -3225,7 +3225,7 @@ document.addEventListener('keydown',e=>{
 });
 
 /* ---------- demo actions ---------- */
-function viewAs(v){ui.demo=false;S.auth=v;save();ui.pad='';ui.found=null;go('shop')}
+function viewAs(v){ui.demo=false;ui.off={};S.auth=v;save();ui.pad='';ui.found=null;go('shop')}
 function setNow(m){S.now=Math.max(0,Math.min(1439,m));save();emit({t:'clock',day:S.day,now:S.now});render()}
 function addNow(d){setNow(S.now+d)}
 function nextDay(){S.day++;S.now=660;save();emit({t:'clock',day:S.day,now:S.now});render()}
@@ -3256,7 +3256,7 @@ function sampleOrders(){
     S.bills.push(...list);for(let i=0;i<list.length;i+=4)emit({t:'bills',list:list.slice(i,i+4)})});
   const NAMES=['Arun Kumar','Priya S','Karthik R','Divya M','Sanjay V','Keerthana P','Hari Prasad','Nivetha K','Vignesh B','Swetha R','Rahul J','Kavya L','Surya T','Deepika N'];
   SHOPS.forEach((s,si)=>{const list=NAMES.map((n,i)=>{const v=1+((i*7+si*3)%9);return {id:newId()+900+i,sid:s.id,phone:String(9840000000+((i+1)*7919+si*104729)%9999999),name:n,year:YEARS[(i+si)%5],ok:i%6!==4,first:S.day-((i*3)%12),last:S.day-(i%5),visits:v,spent:v*(55+(i*13)%60)}});
-    list.forEach(upsertCust);for(let i=0;i<list.length;i+=7)emit({t:'custs',list:list.slice(i,i+7)})});
+    list.forEach(upsertCust);list.reduce((p,c)=>p.then(()=>pushCust(c)),Promise.resolve()).then(()=>pullCusts(s.id,true))});
   save();for(let i=0;i<fresh8.length;i+=8)emit({t:'orders',list:fresh8.slice(i,i+8)});ui.demo=false;render();
 }
 
@@ -3808,6 +3808,52 @@ function analyticsView(){
   <p class="fine" style="margin-top:18px">Demo: days before today are sample numbers so the charts have history. Today is real, from your bills and app orders, and updates as you bill.</p>`;
 }
 
+/* ---------- n8n backend (n8n.luvias.in, workflow "KPR Lunch Backend") ----------
+   Customer contacts and offers are stored on the server, not on the public live sync topic.
+   Form posts (no custom headers) so the browser sends them without a CORS preflight.
+   Each shop unlocks its customer list with its own PIN, typed once on the shop's device. The PIN is never in this page. */
+const API='https://n8n.luvias.in/webhook/kpr-lunch';
+const pinOf = sid => {try{return localStorage.getItem('kprlunch_pin_'+sid)||''}catch(e){return ''}};
+const STUDENT_LINK='rgokulkrishna44-debug.github.io/kpr-lunch/student.html';
+const apiAt={};
+function apiPost(path,data){const key=pinOf(data.sid);if(!key)return Promise.resolve(null);return fetch(API+'/'+path,{method:'POST',body:new URLSearchParams(Object.assign({key},data))}).then(r=>r.json()).catch(()=>null)}
+function pushCust(c){
+  if(!pinOf(c.sid)){ui.api='pin';return Promise.resolve(null)}
+  return apiPost('customer',{sid:c.sid,phone:c.phone,name:c.name,year:c.year||'',ok:String(!!c.ok),visits:c.visits,spent:c.spent,first:c.first,last:c.last}).then(r=>{
+    if(r&&r.tk){const x=custBy(c.sid,c.phone);if(x&&(x.tk!==r.tk||x.stopped!==r.stopped)){x.tk=r.tk;x.stopped=!!r.stopped;save()}}
+    ui.api=r&&r.ok?'ok':r&&r.message?'bad':'off';return r});
+}
+async function pullCusts(sid,force){
+  if(!force&&Date.now()-(apiAt[sid]||0)<15000)return;apiAt[sid]=Date.now();
+  const key=pinOf(sid);if(!key){if(ui.api!=='pin'){ui.api='pin';render()}return}
+  let r;try{r=await fetch(API+'/customers?sid='+sid+'&key='+encodeURIComponent(key)).then(x=>x.json())}catch(e){r=null}
+  if(!r||!Array.isArray(r.customers)){const st=r&&r.message?'bad':'off';if(ui.api!==st){ui.api=st;render()}return}
+  let ch=ui.api!=='ok';ui.api='ok';
+  r.customers.forEach(v=>{const ex=custBy(sid,v.phone);
+    if(!ex){upsertCust({id:newId(),sid,phone:v.phone,name:v.name,year:v.year,ok:v.ok,stopped:v.stopped,tk:v.tk,visits:v.visits,spent:v.spent,first:v.first,last:v.last});ch=true;return}
+    if(ex.tk!==v.tk||!!ex.stopped!==v.stopped){ex.tk=v.tk;ex.stopped=v.stopped;ch=true}
+    if(v.visits>ex.visits){Object.assign(ex,{name:v.name,year:v.year,ok:v.ok,visits:v.visits,spent:v.spent,last:v.last});ch=true}});
+  if(ch){save();render()}
+}
+// Shop types its PIN once; then anything saved on this device before is sent up.
+async function setPin(sid){
+  const el=document.getElementById('pin'),v=(el&&el.value||'').replace(/\D/g,'');if(!v)return;
+  try{localStorage.setItem('kprlunch_pin_'+sid,v)}catch(e){}
+  ui.api='wait';render();await pullCusts(sid,true);
+  if(ui.api==='bad'){try{localStorage.removeItem('kprlunch_pin_'+sid)}catch(e){};ui.toast='That PIN is not right for '+shopOf(sid).name+'.';render();return}
+  const todo=custsOf(sid).filter(c=>!c.tk);for(const c of todo)await pushCust(c);
+  ui.toast='Customer list unlocked on this device.';render();
+}
+function forgetPin(sid){try{localStorage.removeItem('kprlunch_pin_'+sid)}catch(e){};ui.api='pin';S.custs=(S.custs||[]).filter(c=>c.sid!==sid);save();render()}
+const pinCard = sid => `<div class="card pad" style="margin-bottom:18px"><div class="sec-h" style="margin-bottom:6px"><h3>${ui.api==='bad'?'PIN not accepted':'Unlock your customer list'}</h3></div>
+  <p class="mute small" style="margin:0 0 12px">Student names and numbers are kept on the KPR Lunch server. Type ${esc(shopOf(sid).name)}'s shop PIN once on this device to see them and send offers.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap"><input id="pin" class="input mono" style="flex:1;min-width:160px" inputmode="numeric" autocomplete="off" placeholder="8 digit PIN" onkeydown="if(event.key==='Enter')setPin('${sid}')"><button class="btn ok" style="width:auto;padding:0 22px" onclick="setPin('${sid}')">Unlock</button></div></div>`;
+const stopLink = c => c&&c.tk?API+'/stop?s='+c.sid+'&t='+c.tk:'';
+const offDefault = sid => `hi {name}, ${shopOf(sid).name.toLowerCase()} here.
+today only, any ${sid==='s1'?'biryani':'fried rice'} comes with a free ${sid==='s1'?'tea':'rose milk'}.
+just show this message at the counter before 1:45 pm.
+want to skip the queue? order from class on the kpr lunch app: ${STUDENT_LINK}`;
+
 /* ---------- customers and WhatsApp offers ---------- */
 const YEARS=['1st year','2nd year','3rd year','4th year','Staff'];
 const custsOf = sid => (S.custs||[]).filter(c=>c.sid===sid);
@@ -3843,12 +3889,12 @@ function saveCust(total){
   const c=ui.cu,p=cleanPh(c.phone);if(p.length!==10)return null;
   const ex=custBy(S.auth,p);
   const rec={id:ex?ex.id:newId(),sid:S.auth,phone:p,name:(c.name||'').trim()||(ex&&ex.name)||'Customer',year:c.year||(ex&&ex.year)||'',ok:c.ok!==false,first:ex?ex.first:S.day,last:S.day,visits:(ex?ex.visits:0)+1,spent:(ex?ex.spent:0)+total};
-  upsertCust(rec);emit({t:'cust',cu:rec});return rec;
+  if(ex){rec.tk=ex.tk;rec.stopped=ex.stopped}upsertCust(rec);pushCust(rec);return rec;
 }
 /* Offers: pick who gets it, attach a photo or PDF, send. */
 function audience(){
   const f=ui.off.to||'all';
-  return custsOf(S.auth).filter(c=>c.ok&&(f==='all'||(f==='regular'?c.visits>=3:f==='lapsed'?S.day-c.last>=3:c.year===f)));
+  return custsOf(S.auth).filter(c=>c.ok&&!c.stopped&&(f==='all'||(f==='regular'?c.visits>=3:f==='lapsed'?S.day-c.last>=3:c.year===f)));
 }
 function offFile(inp){
   const f=inp.files&&inp.files[0];if(!f)return;
@@ -3856,11 +3902,11 @@ function offFile(inp){
   ui.off.file=f;ui.off.url=URL.createObjectURL(f);render();
 }
 function offClear(){if(ui.off.url)URL.revokeObjectURL(ui.off.url);ui.off.file=null;ui.off.url='';render()}
-const offText = c => (ui.off.msg||'').replace(/\{name\}/g,c?c.name.split(' ')[0]:'there');
+const offText = c => {const t=(ui.off.msg||'').replace(/\{name\}/g,c?c.name.split(' ')[0]:'there'),l=stopLink(c);return l?t+'\n\ndont want offers from us? tap here and we will stop: '+l:t};
 function offSend(){
   const list=audience();if(!list.length||!(ui.off.msg||'').trim())return;
   const camp={id:newId(),sid:S.auth,day:S.day,at:S.now,msg:ui.off.msg,file:ui.off.file?ui.off.file.name:'',to:ui.off.to||'all',n:list.length,sent:[]};
-  (S.camps=S.camps||[]).push(camp);save();emit({t:'camp',camp});ui.off.run=camp.id;render();
+  (S.camps=S.camps||[]).push(camp);save();emit({t:'camp',camp});apiPost('offer',{sid:S.auth,msg:camp.msg,file:camp.file,audience:camp.to,n:camp.n});ui.off.run=camp.id;render();
 }
 function offMark(cid,ph){const c=(S.camps||[]).find(x=>x.id===cid);if(c&&!c.sent.includes(ph)){c.sent.push(ph);save();emit({t:'campsent',id:cid,ph});setTimeout(render,300)}}
 async function offShare(){
@@ -3872,7 +3918,9 @@ async function offShare(){
   ui.toast='Sharing a file needs a phone browser. On a laptop, send the message and attach the file in WhatsApp.';render();
 }
 function customersView(){
+  if(ui.off.msg===undefined)ui.off.msg=offDefault(S.auth);
   const sid=S.auth,all=custsOf(sid),q=(ui.cq||'').trim().toLowerCase(),fy=ui.cy||'';
+  const lock=!pinOf(sid)||ui.api==='bad'?pinCard(sid):'';
   const okN=all.filter(c=>c.ok).length,reg=all.filter(c=>c.visits>=3).length,newW=all.filter(c=>S.day-c.first<7).length;
   const list=all.filter(c=>(!fy||c.year===fy)&&(!q||c.name.toLowerCase().includes(q)||c.phone.includes(q))).sort((a,b)=>b.last-a.last||b.visits-a.visits);
   const aud=audience(),camp=ui.off.run&&(S.camps||[]).find(c=>c.id===ui.off.run);
@@ -3886,21 +3934,21 @@ function customersView(){
     <p class="fine">In the live version this goes to everyone at once with the photo or PDF attached, through the WhatsApp Business API. WhatsApp charges about Rs 1 per message, passed on at cost.</p></div>`
   :`<div class="card pad offer"><div class="sec-h" style="margin-bottom:6px"><h3>Send an offer on WhatsApp</h3></div>
     <label class="lbl" for="offmsg">Message</label>
-    <textarea id="offmsg" class="input" rows="4" placeholder="Hi {name}, today only: Chicken biryani Rs 99 at ${esc(shopOf(sid).name)}. Show this message at the counter." oninput="ui.off.msg=this.value;document.getElementById('offgo').disabled=!this.value.trim()||!${aud.length}">${esc(ui.off.msg||'')}</textarea>
-    <p class="fine" style="margin-top:6px">{name} becomes each customer's first name.</p>
+    <textarea id="offmsg" class="input" rows="6" oninput="ui.off.msg=this.value;document.getElementById('offgo').disabled=!this.value.trim()||!${aud.length}">${esc(ui.off.msg||'')}</textarea>
+    <p class="fine" style="margin-top:6px">{name} becomes each customer's first name. A stop link is added at the end of every message, so students can opt out in one tap.</p>
     <label class="lbl" style="margin-top:16px">Photo or PDF</label>
     ${ui.off.file?`<div class="att">${isImg?`<img src="${ui.off.url}" alt="Offer photo preview">`:`<span class="pdf">PDF</span>`}<span class="att-n">${esc(ui.off.file.name)}<small class="mute">${Math.max(1,Math.round(ui.off.file.size/1024))} KB</small></span><button class="btn sm ghost" onclick="offClear()">Remove</button></div>`
       :`<label class="drop"><input type="file" accept="image/*,application/pdf" onchange="offFile(this)" hidden>Choose a poster photo or PDF menu</label>`}
     <label class="lbl" for="offto" style="margin-top:16px">Send to</label>
     <select id="offto" class="input" onchange="ui.off.to=this.value;render()">${tos.map(([v,l])=>`<option value="${v}" ${(ui.off.to||'all')===v?'selected':''}>${l}</option>`).join('')}</select>
     <button id="offgo" class="btn lg ok" ${aud.length&&(ui.off.msg||'').trim()?'':'disabled'} onclick="offSend()">Send to ${plural(aud.length,'customer')}</button>
-    <p class="fine">Only customers who agreed to get offers are included. Every message lets them reply STOP.</p></div>`;
+    <p class="fine">Only customers who agreed to get offers and have not tapped stop are included. ${ui.api==='ok'?'Customer list saved on the KPR Lunch server. <a href="#shop-customers" onclick="forgetPin(\''+sid+'\');return false">Lock this device</a>':ui.api==='off'?'Server not reachable, using the list on this device.':ui.api==='pin'||ui.api==='bad'?'Locked. Type the shop PIN above to save customers on the server.':'Connecting to the server.'}</p></div>`;
   const past=(S.camps||[]).filter(c=>c.sid===sid).slice().reverse().slice(0,4);
-  return `<div class="kpis"><div class="kpi"><span>Customers</span><b>${all.length}</b><small>${newW} new this week</small></div><div class="kpi"><span>Said yes to offers</span><b>${okN}</b></div><div class="kpi"><span>Regulars</span><b>${reg}</b><small>3 or more visits</small></div><div class="kpi"><span>Offers sent</span><b>${sum((S.camps||[]).filter(c=>c.sid===sid),c=>c.sent.length)}</b></div></div>
+  return `${lock}<div class="kpis"><div class="kpi"><span>Customers</span><b>${all.length}</b><small>${newW} new this week</small></div><div class="kpi"><span>Said yes to offers</span><b>${okN}</b></div><div class="kpi"><span>Regulars</span><b>${reg}</b><small>3 or more visits</small></div><div class="kpi"><span>Offers sent</span><b>${sum((S.camps||[]).filter(c=>c.sid===sid),c=>c.sent.length)}</b></div></div>
   <div class="custs"><div>
   <div class="bsearch">${ICON.search}<input placeholder="Search name or number" value="${esc(ui.cq||'')}" autocomplete="off" oninput="ui.cq=this.value;clearTimeout(window._cq);window._cq=setTimeout(()=>{const a=document.activeElement;render();const n=document.querySelector('.custs .bsearch input');if(n&&a&&a.tagName==='INPUT'){n.focus();n.setSelectionRange(n.value.length,n.value.length)}},250)"></div>
   <div class="bcats"><button class="${!fy?'on':''}" onclick="ui.cy='';render()">All years</button>${YEARS.map(y=>`<button class="${fy===y?'on':''}" onclick="ui.cy='${y}';render()">${y} <span class="mono">${all.filter(c=>c.year===y).length}</span></button>`).join('')}</div>
-  ${list.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Name</th><th>WhatsApp</th><th>Year</th><th>Visits</th><th>Spent</th><th>Last visit</th><th>Offers</th></tr></thead><tbody>${list.map(c=>`<tr><td style="color:var(--hi);font-weight:600">${esc(c.name)}</td><td class="mono">${fmtPh(c.phone)}</td><td>${c.year||'<span class="mute">Not given</span>'}</td><td class="mono">${c.visits}</td><td class="mono">${rs(c.spent)}</td><td>${dayLabel(c.last)}</td><td>${c.ok?'<span class="chip ok">Yes</span>':'<span class="chip line">No</span>'}</td></tr>`).join('')}</tbody></table></div>`
+  ${list.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Name</th><th>WhatsApp</th><th>Year</th><th>Visits</th><th>Spent</th><th>Last visit</th><th>Offers</th></tr></thead><tbody>${list.map(c=>`<tr><td style="color:var(--hi);font-weight:600">${esc(c.name)}</td><td class="mono">${fmtPh(c.phone)}</td><td>${c.year||'<span class="mute">Not given</span>'}</td><td class="mono">${c.visits}</td><td class="mono">${rs(c.spent)}</td><td>${dayLabel(c.last)}</td><td>${c.stopped?'<span class="chip line">Stopped</span>':c.ok?'<span class="chip ok">Yes</span>':'<span class="chip line">No</span>'}</td></tr>`).join('')}</tbody></table></div>`
   :`<div class="card pad mute small">${all.length?'Nobody matches this filter.':'No customers yet. Add their WhatsApp number on a bill in Billing and they appear here.'}</div>`}
   ${past.length?`<h2 class="h2">Recent offers</h2><div class="card list">${past.map(c=>`<div class="it"><div class="it-b"><div class="it-n">${esc(c.msg.slice(0,70))}${c.msg.length>70?'...':''}</div><div class="it-p">${dayLabel(c.day)} at ${fmt(c.at)}${c.file?', with '+esc(c.file):''}</div></div><span class="chip ${c.sent.length===c.n?'ok':'warn'} mono">${c.sent.length} of ${c.n}</span></div>`).join('')}</div>`:''}
   </div><aside class="baside">${compose}</aside></div>`;
@@ -3931,6 +3979,7 @@ function render(){
   document.getElementById('sheet').innerHTML=sheetHtml();
   document.getElementById('demo').innerHTML=demoHtml();
   if(r.name==='menu')applyFilter();
+  if(r.shop&&S.auth&&['customers','billing','analytics','counter'].includes(r.name||'counter'))pullCusts(S.auth);
   if(ui.toast){clearTimeout(toastTimer);toastTimer=setTimeout(()=>{ui.toast='';render()},6000)}
 }
 const tipEl=document.createElement('div');tipEl.id='tip';document.body.appendChild(tipEl);
