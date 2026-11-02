@@ -419,6 +419,102 @@ section{margin-top:44px}
 .dpanel button.on{background:var(--text);color:var(--bg)}
 .dpanel .fine{margin:0}
 
+/* counter billing */
+.billing{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;align-items:start}
+.baside{position:sticky;top:20px;display:grid;gap:14px}
+.bsearch{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line2);border-radius:16px;padding:0 16px;color:var(--mute)}
+.bsearch input{border:0;outline:0;font:inherit;font-size:16px;padding:13px 0;flex:1;min-width:0;background:transparent;color:var(--hi)}
+.bcats{display:flex;gap:6px;overflow-x:auto;padding:12px 0;scrollbar-width:none}
+.bcats::-webkit-scrollbar{display:none}
+.bcats button{padding:8px 14px;border-radius:99px;background:var(--s1);border:1px solid var(--line);font-size:13.5px;font-weight:600;color:var(--mute);white-space:nowrap}
+.bcats button.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.btiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.bt{position:relative;text-align:left;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:14px;min-height:90px;display:flex;flex-direction:column;justify-content:space-between;gap:10px;transition:transform .1s,border-color .2s,background .2s}
+.bt:active{transform:scale(.97)}
+.bt.in{border-color:var(--text);background:#fff;box-shadow:0 0 0 1px var(--text)}
+.bt:disabled{opacity:.45;cursor:not-allowed}
+.bt-n{font-weight:600;font-size:14.5px;color:var(--hi);line-height:1.3;display:flex;gap:7px;align-items:flex-start;padding-right:22px}
+.bt-n .veg{margin-top:3px;flex:none}
+.bt-p{font-size:13.5px;color:var(--mute)}
+.bt em{position:absolute;top:9px;right:9px;font:700 12px var(--mono);font-style:normal;background:var(--text);color:var(--bg);border-radius:99px;min-width:24px;height:24px;display:grid;place-items:center;padding:0 6px}
+@media(hover:hover){.bt:not(:disabled):hover{border-color:var(--line2);background:#fff}}
+.bl{display:grid;margin:4px 0 10px}
+.bl-r{display:grid;grid-template-columns:minmax(0,1fr) auto 64px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.bl-n{font-weight:600;font-size:14.5px;color:var(--hi);display:grid;gap:2px}
+.bl-n small{font-size:12px;color:var(--mute);font-weight:500}
+.bl-a{text-align:right;color:var(--hi)}
+.bkv{display:flex;justify-content:space-between;font-size:13.5px;color:var(--mute);padding:3px 0}
+.b-tot{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 14px;padding-top:12px;border-top:1.5px solid var(--text)}
+.b-tot span{font-weight:700;color:var(--hi);font-size:16px}
+.b-tot b{font-size:32px;color:var(--hi);letter-spacing:-.02em}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--s2);border-radius:14px;padding:4px;gap:4px}
+.seg button{padding:11px;border-radius:11px;font-weight:600;color:var(--mute)}
+.seg button.on{background:#fff;color:var(--hi);box-shadow:0 1px 3px rgba(8,47,37,.14)}
+.quick{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.quick button{padding:8px 13px;border-radius:99px;background:var(--s2);font-size:13px;font-weight:600;color:var(--text)}
+.chg{margin-top:12px;font-size:15px;color:var(--text);min-height:28px}
+.chg b{font-size:22px;color:var(--hi)}
+.chg .bad{color:var(--bad);font-weight:600}
+.bbar{display:none}
+.bbar button{width:100%;display:flex;justify-content:space-between;align-items:center;background:var(--text);color:var(--bg);padding:15px 20px;border-radius:18px;font-weight:600;box-shadow:0 10px 30px rgba(8,47,37,.25)}
+@media(max-width:1020px){.billing{grid-template-columns:minmax(0,1fr)}.baside{position:static}.bbar{display:block;position:fixed;left:16px;right:16px;bottom:calc(84px + var(--sab));z-index:40}}
+.receipt{background:#fff;color:#111;font:12.5px/1.5 var(--mono);padding:20px 18px;border-radius:8px;border:1px dashed var(--line2);max-width:340px;margin:0 auto;position:relative}
+.rc-c{text-align:center}
+.rc-shop{font:800 17px var(--font);display:block;margin-bottom:2px}
+.rc-t{margin-top:8px;font-weight:700;letter-spacing:.14em}
+.rc-hr{border-top:1px dashed #999;margin:9px 0}
+.rc-row{display:flex;justify-content:space-between;gap:10px}
+.rc-it{display:grid;grid-template-columns:minmax(0,1fr) 30px 74px;gap:6px;margin-bottom:3px}
+.rc-it span:nth-child(n+2){text-align:right}
+.rc-it small{color:#666;font-size:11px}
+.rc-h{font-weight:700}
+.rc-tot{font-weight:800;font-size:15px;margin:6px 0 2px}
+.rc-f{margin-top:12px;font-size:11px;color:#555}
+.rc-void{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-14deg);border:3px solid var(--bad);color:var(--bad);font:800 26px var(--font);padding:4px 14px;border-radius:8px;letter-spacing:.08em;background:rgba(255,255,255,.88)}
+.racts{display:grid;gap:8px;margin-top:16px}
+.racts .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+@media(max-width:900px){.cgrid{grid-template-columns:minmax(0,1fr)}}
+.mrow{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.mrow b{color:var(--hi)}
+.mrow.tot{border-bottom:0;font-weight:700;font-size:17px;color:var(--hi);padding-top:14px}
+.cbox{margin-top:10px;padding:12px 14px;border-radius:14px;font-weight:600;font-size:14.5px}
+.cbox.ok{background:var(--okbg);color:var(--ok)}
+.cbox.warn{background:var(--warnbg);color:var(--warn)}
+.cbox.idle{background:var(--s2);color:var(--mute);font-weight:500}
+.cu{margin:4px 0 14px;border:1px solid var(--line);border-radius:16px;background:var(--bg)}
+.cu summary{cursor:pointer;padding:12px 14px;font-weight:600;color:var(--hi);font-size:14.5px;list-style:none;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.cu summary::-webkit-details-marker{display:none}
+.cu summary::after{content:"+";font:600 18px var(--mono);color:var(--mute)}
+.cu[open] summary::after{content:"−"}
+.cu-in{display:grid;gap:8px;padding:0 14px 14px}
+.cu-in .input{font-size:15px;padding:11px 14px;border-radius:12px}
+.cu-h:empty{display:none}
+.ychips{display:flex;flex-wrap:wrap;gap:6px}
+.ychips button{padding:7px 11px;border-radius:99px;background:#fff;border:1px solid var(--line2);font-size:12.5px;font-weight:600;color:var(--mute)}
+.ychips button.on{background:var(--text);border-color:var(--text);color:var(--bg)}
+.tick{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--text);line-height:1.4;cursor:pointer}
+.tick input{width:17px;height:17px;accent-color:var(--text);margin:1px 0 0;flex:none}
+.custs{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;align-items:start}
+.custs .bsearch{margin-bottom:0}
+@media(max-width:1020px){.custs{grid-template-columns:minmax(0,1fr)}.custs .baside{order:-1}}
+.offer textarea.input{font-size:15px;resize:vertical;min-height:96px;line-height:1.45}
+.offer select.input{font-size:15px;padding:12px 14px;appearance:auto}
+.drop{display:grid;place-items:center;border:1.5px dashed var(--line2);border-radius:14px;padding:22px;font-size:14px;font-weight:600;color:var(--mute);cursor:pointer;text-align:center;background:var(--bg)}
+.drop:hover{border-color:var(--mute);color:var(--text)}
+.att{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:14px;padding:10px;background:#fff}
+.att img{width:56px;height:56px;object-fit:cover;border-radius:10px;flex:none}
+.att .pdf{width:56px;height:56px;border-radius:10px;background:var(--badbg);color:var(--bad);display:grid;place-items:center;font:700 13px var(--mono);flex:none}
+.att-n{flex:1;min-width:0;display:grid;gap:2px;font-size:13.5px;font-weight:600;color:var(--hi);word-break:break-all}
+.att-n small{font-weight:500}
+.sendlist{display:grid;max-height:420px;overflow:auto;margin:0 -4px;padding:0 4px}
+.sl{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line);color:var(--text)}
+.sl>span:first-child{display:grid;gap:1px;min-width:0}
+.sl b{color:var(--hi);font-size:14.5px}
+.sl.done{opacity:.55}
+tr.click{cursor:pointer}
+@media(hover:hover){tr.click:hover td{background:var(--bg)}}
+@media print{body *{visibility:hidden!important}.receipt,.receipt *{visibility:visible!important}.receipt{position:fixed;left:0;top:0;border:0;max-width:72mm;padding:0}.rc-void{border-color:#000;color:#000}}
 @media(max-width:1020px){
   .menu-wrap{grid-template-columns:minmax(0,1fr)}.aside{display:none}.cartbar{display:block}
   .land{grid-template-columns:minmax(0,1fr);gap:48px;min-height:0}
@@ -2821,14 +2917,15 @@ const itemOf = (s,id) => s.items.find(i=>i.id===id);
 function fresh(){
   const shops={};
   SHOPS.forEach(s=>{shops[s.id]={sold:{},special:(s.items.find(i=>i.name===s.special)||s.items[0]).id,upi:s.upi,cap:150,open:true}});
-  return {v:8,day:1,now:660,roll:'',orders:[],strikes:{},shops,carts:{},auth:null,last:0};
+  return {v:8,day:1,now:660,roll:'',orders:[],bills:[],custs:[],camps:[],strikes:{},shops,carts:{},auth:null,last:0};
 }
 function load(){try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.v===8)return d}catch(e){}return fresh()}
 let S = load();
+if(!S.bills)S.bills=[];if(!S.custs)S.custs=[];if(!S.camps)S.camps=[];
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
 window.addEventListener('storage',e=>{if(e.key===K){S=load();render()}});
-const ui = {give:{},pad:'',found:null,q:'',demo:false,dockMin:false,sheet:null,pay:{},toast:'',resetArm:false};
-function resetShared(){const f=fresh();S.day=f.day;S.now=f.now;S.orders=[];S.strikes={};S.shops=f.shops}
+const ui = {cu:{},off:{},cq:'',cy:'',bill:{},bmode:'cash',bgot:'',bq:'',bcat:-1,bphone:'',voidArm:null,counted:'',give:{},pad:'',found:null,q:'',demo:false,dockMin:false,sheet:null,pay:{},toast:'',resetArm:false};
+function resetShared(){const f=fresh();S.day=f.day;S.now=f.now;S.orders=[];S.bills=[];S.custs=[];S.camps=[];S.strikes={};S.shops=f.shops}
 const newId = () => Date.now()*1000+Math.floor(Math.random()*1000);
 
 /* ---------- live sync: every change is an event sent through a free ntfy.sh topic ---------- */
@@ -2863,6 +2960,13 @@ function apply(ev){
     case 'coming':if(o&&isActive(o)){o.coming=true;o.comingAt=ev.at}break;
     case 'pay':if(o&&o.ps==='check'){o.ps=ev.v;o.payAt=ev.at;if(ev.v==='ok')o.paid=true;else if(isActive(o))o.status='cancelled'}break;
     case 'cancel':if(o&&o.status==='placed'&&!isPart(o))o.status='cancelled';break;
+    case 'bill':if(ev.b&&!S.bills.some(b=>b.id===ev.b.id))S.bills.push(ev.b);break;
+    case 'bills':ev.list.forEach(x=>{if(!S.bills.some(b=>b.id===x.id))S.bills.push(x)});break;
+    case 'void':{const b=S.bills.find(b=>b.id===ev.id);if(b)b.void=true}break;
+    case 'cust':if(ev.cu&&ev.cu.phone)upsertCust(ev.cu);break;
+    case 'custs':ev.list.forEach(upsertCust);break;
+    case 'camp':if(ev.camp&&!S.camps.some(c=>c.id===ev.camp.id))S.camps.push(ev.camp);break;
+    case 'campsent':{const c=S.camps.find(c=>c.id===ev.id);if(c&&!c.sent.includes(ev.ph))c.sent.push(ev.ph)}break;
     case 'sold':if(S.shops[ev.sid]){if(ev.v)S.shops[ev.sid].sold[ev.item]=true;else delete S.shops[ev.sid].sold[ev.item]}break;
     case 'shop':if(S.shops[ev.sid])S.shops[ev.sid][ev.k]=ev.v;break;
     case 'clock':S.day=ev.day;S.now=ev.now;break;
@@ -2943,6 +3047,9 @@ const ICON = {
   counter:sv('<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 7h8M8 12h8M8 16h5"/>'),
   orders:sv('<path d="M5 6h14M5 12h14M5 18h9"/>'),
   menu:sv('<path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/>'),
+  billing:sv('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>'),
+  customers:sv('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'),
+  closing:sv('<path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/>'),
   settings:sv('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>')
 };
 
@@ -3075,6 +3182,7 @@ function setField(k,v){
   const st=S.shops[S.auth];
   if(k==='cap')v=Math.max(1,parseInt(v)||1);
   if(k==='upi')v=v.trim()||st.upi;
+  if(k==='gstin'){v=v.trim().toUpperCase();if(v&&!GSTIN_RE.test(v)){ui.toast='That GSTIN does not look right. It has 15 characters, like 33ABCDE1234F1Z5.';render();return}}
   st[k]=v;save();emit({t:'shop',sid:S.auth,k,v});render();
 }
 document.addEventListener('keydown',e=>{
@@ -3116,6 +3224,14 @@ function sampleOrders(){
   let k=0;
   SHOPS.forEach(s=>{plan.forEach(([st,pay,c],i)=>mk(s,i+k,S.day,st,pay,c,rolls[(k+i)%rolls.length]));k+=3});
   if(S.roll){mk(SHOPS[0],1,S.day-1,'collected','upi',1,S.roll);mk(SHOPS[1],2,S.day-1,'collected','cash',1,S.roll);mk(SHOPS[1],3,S.day-2,'collected','upi',1,S.roll)}
+  SHOPS.forEach(s=>{const list=[];const base=billsOf(s.id).length;
+    for(let i=0;i<9;i++){const a=s.items[(i*4+2)%s.items.length],c=s.items[(i*7+3)%s.items.length];const items=[{id:a.id,n:a.name,p:a.price,q:1+i%2}];if(i%3&&c.id!==a.id)items.push({id:c.id,n:c.name,p:c.price,q:1});
+      const total=items.reduce((t,x)=>t+x.p*x.q,0),mode=i%3===1?'upi':'cash';
+      list.push({id:newId()+500+i,sid:s.id,no:billNo(s.id,base+i+1),day:S.day,at:Math.min(S.now,600+i*6),items,total,mode,got:mode==='cash'?Math.ceil(total/50)*50:total,gstin:gstinOf(s.id),void:i===5})}
+    S.bills.push(...list);for(let i=0;i<list.length;i+=4)emit({t:'bills',list:list.slice(i,i+4)})});
+  const NAMES=['Arun Kumar','Priya S','Karthik R','Divya M','Sanjay V','Keerthana P','Hari Prasad','Nivetha K','Vignesh B','Swetha R','Rahul J','Kavya L','Surya T','Deepika N'];
+  SHOPS.forEach((s,si)=>{const list=NAMES.map((n,i)=>{const v=1+((i*7+si*3)%9);return {id:newId()+900+i,sid:s.id,phone:String(9840000000+((i+1)*7919+si*104729)%9999999),name:n,year:YEARS[(i+si)%5],ok:i%6!==4,first:S.day-((i*3)%12),last:S.day-(i%5),visits:v,spent:v*(55+(i*13)%60)}});
+    list.forEach(upsertCust);for(let i=0;i<list.length;i+=7)emit({t:'custs',list:list.slice(i,i+7)})});
   save();for(let i=0;i<fresh8.length;i+=8)emit({t:'orders',list:fresh8.slice(i,i+8)});ui.demo=false;render();
 }
 
@@ -3281,6 +3397,8 @@ function sheetHtml(){
     <div class="qrbox"><div class="qr">${upiQr(upiLink(s,amt,S.roll))}</div><div class="mute small center">Scan with GPay or any UPI app. Pay exactly ${rsp(amt)}.</div><a class="btn lg ghost upi-open" href="${esc(upiLink(s,amt,S.roll))}">Open GPay on this phone</a></div>
     <button class="btn lg ok" onclick="createOrder('${s.id}',true)">I have paid ${rsp(amt)}</button>
     <p class="fine center">${s.name} checks that ${rsp(amt)} reached their GPay, then your token goes live. Screenshots are not accepted at the counter. Demo: the UPI ID is a placeholder, do not pay it.</p>`;
+  }else if(ui.sheet.type==='receipt'){
+    body=receiptSheet();
   }else{
     const k=strikes(),n=S.orders.filter(o=>o.roll===S.roll&&o.status!=='cancelled').length;
     body=`<div class="sheet-h"><b>Your account</b><button class="x" onclick="closeSheet()">Close</button></div>
@@ -3379,6 +3497,8 @@ function settingsView(){
   const s=shopOf(S.auth),st=S.shops[S.auth];
   return `<div class="card pad form"><label class="lbl">GPay UPI ID</label><input class="input mono" value="${esc(st.upi)}" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" onchange="setField('upi',this.value)">
   <p class="fine">Student GPay payments for ${s.name} go only to this ID. Each shop has its own.</p>
+  <label class="lbl" for="gstin">GSTIN</label><input id="gstin" class="input mono" value="${esc(gstinOf(S.auth))}" placeholder="Leave empty if not GST registered" autocapitalize="characters" autocorrect="off" spellcheck="false" onchange="setField('gstin',this.value)">
+  <p class="fine">Printed on every counter bill with the CGST and SGST split. Leave empty if ${s.name} is not GST registered. This demo uses a sample GSTIN.</p>
   <label class="lbl">Max orders per day</label><input class="input mono" type="number" inputmode="numeric" min="1" value="${st.cap}" onchange="setField('cap',this.value)">
   <p class="fine">Students cannot order from ${s.name} once this many orders are in.</p>
   <div class="kv" style="margin-top:24px"><span><b>Taking orders</b><br><span class="mute small">Turn off if you run out or close early</span></span><label class="sw"><input type="checkbox" ${st.open?'checked':''} onchange="setField('open',this.checked)"><span></span></label></div>
@@ -3386,16 +3506,257 @@ function settingsView(){
 }
 function shopDash(r){
   const s=shopOf(S.auth),st=S.shops[S.auth];
-  const views={counter:counterView,orders:kitchenView,menu:shopMenuView,settings:settingsView};
+  const views={counter:counterView,orders:kitchenView,billing:billingView,closing:closingView,customers:customersView,menu:shopMenuView,settings:settingsView};
   const v=views[r.name]?r.name:'counter';
-  const titles={counter:'Counter',orders:'Kitchen',menu:'Menu',settings:'Settings'};
-  const links=[['counter','Counter','shop'],['orders','Kitchen','shop-orders'],['menu','Menu','shop-menu'],['settings','Settings','shop-settings']];
+  const titles={counter:'Counter',orders:'Kitchen',billing:'Billing',closing:'Day closing',customers:'Customers',menu:'Menu',settings:'Settings'};
+  const links=[['counter','Counter','shop'],['orders','Kitchen','shop-orders'],['billing','Billing','shop-billing'],['closing','Closing','shop-closing'],['customers','Customers','shop-customers'],['menu','Menu','shop-menu'],['settings','Settings','shop-settings']];
   const pending=liveOf(S.auth).filter(o=>o.status==='placed'||o.status==='cooking').length,checks=toCheck(S.auth).length;
   const status=!st.open?'Not taking orders':ordering()?'Taking orders till '+fmt(CUTOFF):'Ordering closed';
   return `<div class="dash"><aside class="side"><div class="brandbox">${tile(s,'lg')}<div><b>${s.name}</b><div class="mute small">Counter</div></div></div>
   <nav>${links.map(([k,l,h])=>`<a href="#${h}" class="${k===v?'on':''}">${ICON[k]}<span>${l}</span>${k==='orders'&&pending?`<em>${pending}</em>`:''}${k==='counter'&&checks?`<em class="warn">${checks}</em>`:''}</a>`).join('')}</nav>
   <div class="side-f"><span class="chip ${st.open&&ordering()?'ok':'line'}">${status}</span></div></aside>
   <main class="main"><div class="main-h"><div><p class="eyebrow"><span class="live ${st.open&&ordering()?'':'off'}"></span>${s.name}</p><h1>${titles[v]}</h1></div><span class="clock">${fmt(S.now)}</span></div>${ui.toast?`<div class="note ok" style="margin:0 0 16px">${esc(ui.toast)}</div>`:''}${views[v]()}</main></div>`;
+}
+
+/* ---------- counter billing ---------- */
+// Prices on the menu include GST (5% for restaurants: CGST 2.5% + SGST 2.5%). Bills split the tax back out.
+const GST_DEMO={s1:'33ABCDE1234F1Z5',s2:'33PQRSX5678K1Z2'};
+const PLACE='KPR Institute of Engineering and Technology, Arasur, Coimbatore';
+const GSTIN_RE=/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+const gstinOf = sid => {const v=S.shops[sid]&&S.shops[sid].gstin;return v===undefined?GST_DEMO[sid]||'':v};
+const sum = (a,f) => a.reduce((t,x)=>t+f(x),0);
+const billsOf = (sid,day) => (S.bills||[]).filter(b=>b.sid===sid&&(day===undefined||b.day===day));
+const billOf = id => (S.bills||[]).find(b=>b.id===+id);
+function tax(total){const t=Math.round(total*100),g=Math.round(t-t/1.05),c=Math.floor(g/2);return {taxable:(t-g)/100,cgst:c/100,sgst:(g-c)/100,gst:g/100}}
+const shopIni = s => s.name.split(' ').map(w=>w[0]).join('').toUpperCase();
+function billNo(sid,n){return shopIni(shopOf(sid))+'/26-27/'+String(n||billsOf(sid).length+1).padStart(4,'0')}
+const billDate = day => new Date(Date.now()+(day-S.day)*864e5).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+const draft = () => ui.bill[S.auth]||(ui.bill[S.auth]={});
+function draftLines(){const s=shopOf(S.auth),d=draft();return Object.keys(d).map(id=>{const it=itemOf(s,id);return it?{id,n:it.name,p:it.price,q:d[id],veg:it.veg}:null}).filter(Boolean)}
+const draftTotal = () => sum(draftLines(),l=>l.p*l.q);
+function bAdd(id,d){const x=draft();x[id]=Math.max(0,(x[id]||0)+d);if(!x[id])delete x[id];render()}
+function bClear(){ui.bill[S.auth]={};ui.bgot='';render()}
+function bMode(m){ui.bmode=m;render()}
+function bFilter(v){ui.bq=v;const q=v.trim().toLowerCase();let any=false;document.querySelectorAll('.bt').forEach(t=>{const ok=!q||t.dataset.n.includes(q);t.style.display=ok?'':'none';if(ok)any=true});const e=document.getElementById('bnone');if(e)e.style.display=any?'none':''}
+function chgHtml(total){const got=parseInt(ui.bgot)||0;if(!got)return '<span class="mute">Type the cash given, or tap Exact</span>';if(got<total)return `<span class="bad">${rs(total-got)} short</span>`;return `Return <b class="mono">${rs(got-total)}</b>`}
+function bGotIn(v){ui.bgot=v.replace(/\D/g,'').slice(0,6);const t=draftTotal(),g=parseInt(ui.bgot)||0;document.getElementById('chg').innerHTML=chgHtml(t);document.getElementById('bsave').disabled=!!g&&g<t}
+function saveBill(){
+  const lines=draftLines();if(!lines.length)return;
+  const total=draftTotal(),mode=ui.bmode||'cash',got=mode==='cash'?(parseInt(ui.bgot)||total):total;
+  if(mode==='cash'&&got<total)return;
+  const g=gstinOf(S.auth),cu=saveCust(total);
+  const b={id:newId(),sid:S.auth,no:billNo(S.auth),day:S.day,at:S.now,items:lines.map(l=>({id:l.id,n:l.n,p:l.p,q:l.q})),total,mode,got,gstin:g};
+  if(cu){b.cname=cu.name;b.cphone=cu.phone}
+  (S.bills=S.bills||[]).push(b);ui.bill[S.auth]={};ui.bgot='';ui.bphone=cu?cu.phone:'';ui.cu={};
+  save();emit({t:'bill',b});ui.sheet={type:'receipt',id:b.id};render();
+}
+function voidBill(id){
+  const b=billOf(id);if(!b||b.void)return;
+  if(ui.voidArm!==b.id){ui.voidArm=b.id;render();setTimeout(()=>{if(ui.voidArm===b.id){ui.voidArm=null;render()}},3000);return}
+  ui.voidArm=null;b.void=true;save();emit({t:'void',id:b.id});ui.toast='Bill '+b.no+' cancelled. It is left out of the day totals.';render();
+}
+function receiptText(b){
+  const s=shopOf(b.sid),t=tax(b.total),L=[];
+  L.push('*'+s.name+'*',PLACE);if(b.gstin)L.push('GSTIN '+b.gstin);
+  L.push('','Bill '+b.no,billDate(b.day)+', '+fmt(b.at),'');
+  b.items.forEach(i=>L.push(i.q+' x '+i.n+'  '+rs(i.p*i.q)));
+  L.push('');if(b.gstin)L.push('Taxable value '+rsp(t.taxable),'CGST 2.5% '+rsp(t.cgst),'SGST 2.5% '+rsp(t.sgst));
+  L.push('*Total '+rs(b.total)+'*','Paid by '+(b.mode==='cash'?'Cash':'UPI'));if(b.void)L.push('','CANCELLED');
+  L.push('','Thank you, visit again');return L.join('\n');
+}
+function waLink(b){const p=(ui.bphone||b.cphone||'').replace(/\D/g,'');return 'https://wa.me/'+(p.length===10?'91'+p:'')+'?text='+encodeURIComponent(receiptText(b))}
+function phoneIn(v,id){ui.bphone=v.replace(/\D/g,'').slice(-10);const a=document.getElementById('wa');if(a)a.href=waLink(billOf(id))}
+function receiptHtml(b){
+  const s=shopOf(b.sid),t=tax(b.total);
+  return `<div class="receipt">${b.void?'<span class="rc-void">CANCELLED</span>':''}
+  <div class="rc-c"><b class="rc-shop">${s.name}</b><div>${PLACE}</div>${b.gstin?`<div>GSTIN ${esc(b.gstin)}</div>`:''}<div class="rc-t">${b.gstin?'TAX INVOICE':'BILL'}</div></div>
+  <div class="rc-hr"></div><div class="rc-row"><span>Bill no</span><span>${b.no}</span></div><div class="rc-row"><span>Date</span><span>${billDate(b.day)}, ${fmt(b.at)}</span></div>${b.cname?`<div class="rc-row"><span>Customer</span><span>${esc(b.cname)}</span></div>`:''}
+  <div class="rc-hr"></div><div class="rc-it rc-h"><span>Item</span><span>Qty</span><span>Amount</span></div>
+  ${b.items.map(i=>`<div class="rc-it"><span>${esc(i.n)}<br><small>@ ${rs(i.p)}</small></span><span>${i.q}</span><span>${(i.p*i.q).toFixed(2)}</span></div>`).join('')}
+  <div class="rc-hr"></div>${b.gstin?`<div class="rc-row"><span>Taxable value</span><span>${t.taxable.toFixed(2)}</span></div><div class="rc-row"><span>CGST 2.5%</span><span>${t.cgst.toFixed(2)}</span></div><div class="rc-row"><span>SGST 2.5%</span><span>${t.sgst.toFixed(2)}</span></div>`:''}
+  <div class="rc-row rc-tot"><span>TOTAL</span><span>Rs ${b.total.toFixed(2)}</span></div>
+  <div class="rc-row"><span>Paid by</span><span>${b.mode==='cash'?'Cash':'UPI'}</span></div>
+  ${b.mode==='cash'&&b.got>b.total?`<div class="rc-row"><span>Cash received</span><span>${b.got.toFixed(2)}</span></div><div class="rc-row"><span>Returned</span><span>${(b.got-b.total).toFixed(2)}</span></div>`:''}
+  <div class="rc-c rc-f">${b.gstin?'SAC 996331, restaurant service. Prices include GST.<br>':''}Thank you, visit again</div></div>`;
+}
+function receiptSheet(){
+  const b=billOf(ui.sheet.id);if(!b)return '';
+  return `<div class="sheet-h"><b>${b.void?'Cancelled bill':'Bill saved'}</b><button class="x" onclick="closeSheet()">Close</button></div>
+  ${receiptHtml(b)}
+  <div class="racts"><label class="lbl" for="wph" style="margin:6px 0 0">Customer WhatsApp number, optional</label>
+  <input id="wph" class="input mono" inputmode="numeric" placeholder="98765 43210" value="${esc(ui.bphone||b.cphone||'')}" oninput="phoneIn(this.value,${b.id})">
+  <div class="row2"><a id="wa" class="btn" href="${esc(waLink(b))}" target="_blank" rel="noopener">Send on WhatsApp</a><button class="btn ghost" onclick="window.print()">Print bill</button></div>
+  <button class="btn ok lg" style="margin-top:4px" onclick="closeSheet()">New bill</button>
+  ${b.void?'':`<button class="fine" style="justify-self:center" onclick="voidBill(${b.id})">${ui.voidArm===b.id?'Tap again to cancel this bill':'Cancel this bill'}</button>`}</div>`;
+}
+function billingView(){
+  const s=shopOf(S.auth),st=S.shops[S.auth],d=draft(),lines=draftLines(),total=draftTotal(),mode=ui.bmode||'cash';
+  const q=(ui.bq||'').trim().toLowerCase(),cat=ui.bcat;
+  const items=s.menu.flatMap((g,i)=>cat<0||cat===i?g.items:[]);
+  const tiles=items.map(it=>{const so=st.sold[it.id],n=d[it.id]||0,hide=q&&!it.name.toLowerCase().includes(q);return `<button class="bt ${n?'in':''}" data-n="${esc(it.name.toLowerCase())}" ${hide?'style="display:none"':''} ${so?'disabled':''} onclick="bAdd('${it.id}',1)">${n?`<em>${n}</em>`:''}<span class="bt-n">${veg(it)}<span>${esc(it.name)}</span></span><span class="bt-p mono">${so?'Sold out':rs(it.price)}</span></button>`}).join('');
+  const g=gstinOf(S.auth),tx=tax(total),got=parseInt(ui.bgot)||0;
+  const quick=[...new Set([total,Math.ceil(total/50)*50,Math.ceil(total/100)*100,Math.max(500,Math.ceil(total/500)*500)])].filter(v=>v>=total).slice(0,4);
+  const panel=`<div class="card pad bill" id="billpanel"><div class="sec-h" style="margin-bottom:4px"><h3>Bill <span class="mono">${billNo(S.auth)}</span></h3>${lines.length?`<button class="fine" style="margin:0" onclick="bClear()">Clear</button>`:''}</div>
+  ${lines.length?`<div class="bl">${lines.map(l=>`<div class="bl-r"><span class="bl-n">${esc(l.n)}<small class="mono">${rs(l.p)} each</small></span><div class="step sm"><button aria-label="One less" onclick="bAdd('${l.id}',-1)">−</button><span>${l.q}</span><button aria-label="One more" onclick="bAdd('${l.id}',1)">+</button></div><b class="mono bl-a">${rs(l.p*l.q)}</b></div>`).join('')}</div>
+  ${g?`<div class="bkv"><span>Taxable value</span><span class="mono">${rsp(tx.taxable)}</span></div><div class="bkv"><span>CGST 2.5%</span><span class="mono">${rsp(tx.cgst)}</span></div><div class="bkv"><span>SGST 2.5%</span><span class="mono">${rsp(tx.sgst)}</span></div>`:''}
+  <div class="b-tot"><span>Total</span><b class="mono">${rs(total)}</b></div>
+  ${cuHtml()}
+  <div class="seg"><button class="${mode==='cash'?'on':''}" onclick="bMode('cash')">Cash</button><button class="${mode==='upi'?'on':''}" onclick="bMode('upi')">UPI</button></div>
+  ${mode==='cash'?`<label class="lbl" for="bgot" style="margin:16px 0 8px">Cash received</label><input id="bgot" class="input mono" inputmode="numeric" autocomplete="off" placeholder="${total}" value="${esc(ui.bgot||'')}" oninput="bGotIn(this.value)">
+  <div class="quick">${quick.map(v=>`<button onclick="ui.bgot='${v}';render()">${v===total?'Exact':rs(v)}</button>`).join('')}</div><div id="chg" class="chg">${chgHtml(total)}</div>
+  <button id="bsave" class="btn lg ok" ${got&&got<total?'disabled':''} onclick="saveBill()">Cash received, save bill</button>`
+  :`<div class="qrbox"><div class="qr">${upiQr(upiLink(s,total,'Bill '+billNo(S.auth)))}</div><div class="mute small center">Customer scans and pays ${rs(total)} to <span class="mono">${esc(st.upi)}</span></div></div>
+  <button class="btn lg ok" onclick="saveBill()">UPI received, save bill</button><p class="fine center">Tap only after ${rs(total)} shows in your GPay or soundbox.</p>`}`
+  :`<p class="mute small" style="margin:8px 0 0">Tap items to start a bill. Menu prices include GST${g?', the bill shows the CGST and SGST split':''}.</p>`}</div>`;
+  const today=billsOf(S.auth,S.day).slice().reverse();
+  const recent=today.length?`<div class="card pad"><div class="sec-h" style="margin-bottom:6px"><h3>Today's bills</h3><a class="fine" style="margin:0" href="#shop-closing">Day closing</a></div>${today.slice(0,5).map(b=>`<button class="ow" onclick="ui.sheet={type:'receipt',id:${b.id}};render()"><span class="mono small" style="font-size:13px">${b.no.split('/').pop()}</span><span class="ow-b">${fmt(b.at)}, ${plural(sum(b.items,i=>i.q),'item')}</span>${b.void?'<span class="chip line">Cancelled</span>':`<span class="chip ${b.mode==='cash'?'warn':'ok'}">${b.mode==='cash'?'Cash':'UPI'} ${rs(b.total)}</span>`}</button>`).join('')}</div>`:'';
+  return `<div class="billing"><div>
+  <div class="bsearch">${ICON.search}<input placeholder="Search ${s.name} items" value="${esc(ui.bq||'')}" autocomplete="off" spellcheck="false" oninput="bFilter(this.value)"></div>
+  <div class="bcats"><button class="${cat<0?'on':''}" onclick="ui.bcat=-1;render()">All items</button>${s.menu.map((g,i)=>`<button class="${cat===i?'on':''}" onclick="ui.bcat=${i};render()">${g.cat}</button>`).join('')}</div>
+  <div class="btiles">${tiles}</div><p id="bnone" class="mute small" style="display:none">No items match your search</p></div>
+  <aside class="baside">${panel}${recent}</aside></div>
+  ${lines.length?`<div class="bbar"><button onclick="document.getElementById('billpanel').scrollIntoView({behavior:'smooth',block:'start'})"><span>${plural(sum(lines,l=>l.q),'item')}</span><span class="mono">${rs(total)} &middot; Pay</span></button></div>`:''}`;
+}
+function dayClose(sid){
+  const live=billsOf(sid,S.day).filter(b=>!b.void);
+  const ord=todays(sid).filter(o=>o.status!=='cancelled');
+  const appUpi=ord.filter(o=>o.pay==='upi'&&!checking(o)),appCash=ord.filter(o=>o.pay==='cash'&&(o.cashPaid||0)>0);
+  const c={cCash:sum(live.filter(b=>b.mode==='cash'),b=>b.total),cUpi:sum(live.filter(b=>b.mode==='upi'),b=>b.total),aUpi:sum(appUpi,o=>o.total),aCash:sum(appCash,o=>o.cashPaid),bills:live.length,appN:appUpi.length+appCash.length};
+  c.total=c.cCash+c.cUpi+c.aUpi+c.aCash;c.expCash=c.cCash+c.aCash;c.expUpi=c.cUpi+c.aUpi;
+  const agg={};const add=(n,p,q,k)=>{const a=agg[n]||(agg[n]={n,c:0,a:0,amt:0});a[k]+=q;a.amt+=p*q};
+  live.forEach(b=>b.items.forEach(i=>add(i.n,i.p,i.q,'c')));
+  appUpi.forEach(o=>o.items.forEach(i=>add(i.n,i.p,i.q,'a')));
+  appCash.forEach(o=>o.items.forEach(i=>dOf(i)&&add(i.n,i.p,dOf(i),'a')));
+  c.items=Object.values(agg).sort((x,y)=>y.amt-x.amt);
+  return c;
+}
+function cboxHtml(exp){const n=ui.counted===''?null:parseInt(ui.counted);if(n===null||isNaN(n))return `<div class="cbox idle">Count the cash box and type the amount above</div>`;if(n===exp)return `<div class="cbox ok">Matches. Cash box is correct.</div>`;return `<div class="cbox warn">${n<exp?'Short by '+rs(exp-n):'Extra '+rs(n-exp)}. Check today's cash bills below.</div>`}
+function cashIn(v,exp){ui.counted=v.replace(/\D/g,'').slice(0,7);document.getElementById('cbox').innerHTML=cboxHtml(exp)}
+function closingText(sid){
+  const s=shopOf(sid),c=dayClose(sid),t=tax(c.total),L=['*'+s.name+' day closing*',billDate(S.day)+', '+fmt(S.now),''];
+  L.push('Counter cash '+rs(c.cCash),'Counter UPI '+rs(c.cUpi),'App GPay '+rs(c.aUpi),'App cash '+rs(c.aCash),'*Total sales '+rs(c.total)+'*','');
+  L.push('Cash in box should be '+rs(c.expCash),'GPay should show '+rs(c.expUpi));
+  if(gstinOf(sid))L.push('','GST in sales '+rsp(t.gst)+' (CGST '+rsp(t.cgst)+', SGST '+rsp(t.sgst)+')');
+  if(c.items.length)L.push('','Top items: '+c.items.slice(0,3).map(i=>i.n+' '+(i.c+i.a)).join(', '));
+  return L.join('\n');
+}
+function closingView(){
+  const sid=S.auth,c=dayClose(sid),g=gstinOf(sid),t=tax(c.total),all=billsOf(sid,S.day).slice().reverse();
+  return `<div class="kpis"><div class="kpi"><span>Total sales today</span><b>${rs(c.total)}</b></div><div class="kpi"><span>Counter bills</span><b>${c.bills}</b><small>${rs(c.cCash+c.cUpi)}</small></div>
+  <div class="kpi"><span>App orders</span><b>${c.appN}</b><small>${rs(c.aUpi+c.aCash)}</small></div><div class="kpi"><span>${g?'GST in sales':'GST'}</span><b>${g?rsp(t.gst):'None'}</b>${g?'<small>CGST + SGST</small>':'<small>Not registered</small>'}</div></div>
+  <div class="cgrid"><div class="card pad"><div class="sec-h" style="margin-bottom:4px"><h3>Money in today</h3></div>
+  <div class="mrow"><span>Counter bills, cash</span><b class="mono">${rs(c.cCash)}</b></div><div class="mrow"><span>Counter bills, UPI</span><b class="mono">${rs(c.cUpi)}</b></div>
+  <div class="mrow"><span>App orders, GPay</span><b class="mono">${rs(c.aUpi)}</b></div><div class="mrow"><span>App orders, cash at counter</span><b class="mono">${rs(c.aCash)}</b></div>
+  <div class="mrow tot"><span>Total</span><span class="mono">${rs(c.total)}</span></div>
+  <a class="btn lg" href="https://wa.me/?text=${encodeURIComponent(closingText(sid))}" target="_blank" rel="noopener">Share closing on WhatsApp</a></div>
+  <div class="card pad"><div class="sec-h" style="margin-bottom:4px"><h3>Cash box check</h3></div>
+  <div class="mrow"><span>Cash that should be in the box</span><b class="mono">${rs(c.expCash)}</b></div>
+  <label class="lbl" for="counted" style="margin:16px 0 8px">Cash you counted</label><input id="counted" class="input mono" inputmode="numeric" autocomplete="off" placeholder="${c.expCash}" value="${esc(ui.counted||'')}" oninput="cashIn(this.value,${c.expCash})">
+  <div id="cbox">${cboxHtml(c.expCash)}</div>
+  <div class="mrow" style="margin-top:14px"><span>Your GPay should show for today</span><b class="mono">${rs(c.expUpi)}</b></div>
+  ${g?`<div class="sec-h" style="margin:22px 0 4px"><h3>GST summary</h3><span class="mute small mono">${esc(g)}</span></div><div class="mrow"><span>Taxable value</span><span class="mono">${rsp(t.taxable)}</span></div><div class="mrow"><span>CGST 2.5%</span><span class="mono">${rsp(t.cgst)}</span></div><div class="mrow"><span>SGST 2.5%</span><span class="mono">${rsp(t.sgst)}</span></div>`:''}</div></div>
+  <h2 class="h2">Items sold today</h2>
+  ${c.items.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Item</th><th>Counter</th><th>App</th><th>Total</th><th>Amount</th></tr></thead><tbody>${c.items.map((i,k)=>`<tr><td>${esc(i.n)}${k===0?' <span class="chip ok">Top seller</span>':''}</td><td class="mono">${i.c}</td><td class="mono">${i.a}</td><td class="mono" style="color:var(--hi)">${i.c+i.a}</td><td class="mono">${rs(i.amt)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="card pad mute small">Nothing sold yet today.</div>'}
+  <h2 class="h2">All bills today</h2>
+  ${all.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Bill no</th><th>Time</th><th>Items</th><th>Paid by</th><th>Amount</th><th></th></tr></thead><tbody>${all.map(b=>`<tr class="click" onclick="ui.sheet={type:'receipt',id:${b.id}};render()"><td class="mono" style="color:var(--hi)">${b.no}</td><td class="mono">${fmt(b.at)}</td><td>${b.items.map(i=>i.q+' x '+esc(i.n)).join(', ')}</td><td>${b.mode==='cash'?'Cash':'UPI'}</td><td class="mono">${rs(b.total)}</td><td>${b.void?'<span class="chip line">Cancelled</span>':'<span class="chip ok">Saved</span>'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="card pad mute small">No counter bills yet. Make one in Billing.</div>'}`;
+}
+
+/* ---------- customers and WhatsApp offers ---------- */
+const YEARS=['1st year','2nd year','3rd year','4th year','Staff'];
+const custsOf = sid => (S.custs||[]).filter(c=>c.sid===sid);
+const custBy = (sid,ph) => (S.custs||[]).find(c=>c.sid===sid&&c.phone===ph);
+const cleanPh = v => String(v||'').replace(/\D/g,'').slice(-10);
+const fmtPh = p => p.slice(0,5)+' '+p.slice(5);
+function upsertCust(c){
+  const ex=custBy(c.sid,c.phone);
+  if(ex)Object.assign(ex,c);else (S.custs=S.custs||[]).push(c);
+}
+// Billing panel: optional customer details. Typing never redraws the screen, so focus is kept.
+function cuIn(k,v){
+  ui.cu[k]=v;
+  if(k==='phone'){
+    const p=cleanPh(v),ex=p.length===10&&custBy(S.auth,p),n=document.getElementById('cuname'),h=document.getElementById('cuhint');
+    if(ex&&n&&!n.value){n.value=ex.name;ui.cu.name=ex.name;if(!ui.cu.year){ui.cu.year=ex.year}}
+    if(h)h.innerHTML=ex?`<span class="chip ok">Regular, ${plural(ex.visits,'visit')}</span>`+(ex.ok?'':' <span class="chip line">No offers</span>'):p.length===10?'<span class="chip light">New customer</span>':'';
+    if(ex&&ex.year)document.querySelectorAll('.ychips button').forEach(b=>b.classList.toggle('on',b.textContent===ui.cu.year));
+  }
+}
+function cuYear(y){ui.cu.year=ui.cu.year===y?'':y;render()}
+function cuHtml(){
+  const c=ui.cu,p=cleanPh(c.phone),ex=p.length===10&&custBy(S.auth,p);
+  return `<details class="cu" ${c.open||p?'open':''} ontoggle="ui.cu.open=this.open"><summary>Customer details <span class="mute small">for WhatsApp bill and offers</span></summary>
+  <div class="cu-in"><input id="cuph" class="input mono" inputmode="numeric" autocomplete="off" placeholder="WhatsApp number" value="${esc(c.phone||'')}" oninput="cuIn('phone',this.value)">
+  <div id="cuhint" class="cu-h">${ex?`<span class="chip ok">Regular, ${plural(ex.visits,'visit')}</span>`:p.length===10?'<span class="chip light">New customer</span>':''}</div>
+  <input id="cuname" class="input" autocomplete="off" placeholder="Name" value="${esc(c.name||'')}" oninput="cuIn('name',this.value)">
+  <div class="ychips">${YEARS.map(y=>`<button class="${c.year===y?'on':''}" onclick="cuYear('${y}')">${y}</button>`).join('')}</div>
+  <label class="tick"><input type="checkbox" ${c.ok!==false?'checked':''} onchange="ui.cu.ok=this.checked"> Customer agrees to get offers on WhatsApp</label></div></details>`;
+}
+// Called from saveBill: returns the phone saved on the bill, or ''
+function saveCust(total){
+  const c=ui.cu,p=cleanPh(c.phone);if(p.length!==10)return null;
+  const ex=custBy(S.auth,p);
+  const rec={id:ex?ex.id:newId(),sid:S.auth,phone:p,name:(c.name||'').trim()||(ex&&ex.name)||'Customer',year:c.year||(ex&&ex.year)||'',ok:c.ok!==false,first:ex?ex.first:S.day,last:S.day,visits:(ex?ex.visits:0)+1,spent:(ex?ex.spent:0)+total};
+  upsertCust(rec);emit({t:'cust',cu:rec});return rec;
+}
+/* Offers: pick who gets it, attach a photo or PDF, send. */
+function audience(){
+  const f=ui.off.to||'all';
+  return custsOf(S.auth).filter(c=>c.ok&&(f==='all'||(f==='regular'?c.visits>=3:f==='lapsed'?S.day-c.last>=3:c.year===f)));
+}
+function offFile(inp){
+  const f=inp.files&&inp.files[0];if(!f)return;
+  if(ui.off.url)URL.revokeObjectURL(ui.off.url);
+  ui.off.file=f;ui.off.url=URL.createObjectURL(f);render();
+}
+function offClear(){if(ui.off.url)URL.revokeObjectURL(ui.off.url);ui.off.file=null;ui.off.url='';render()}
+const offText = c => (ui.off.msg||'').replace(/\{name\}/g,c?c.name.split(' ')[0]:'there');
+function offSend(){
+  const list=audience();if(!list.length||!(ui.off.msg||'').trim())return;
+  const camp={id:newId(),sid:S.auth,day:S.day,at:S.now,msg:ui.off.msg,file:ui.off.file?ui.off.file.name:'',to:ui.off.to||'all',n:list.length,sent:[]};
+  (S.camps=S.camps||[]).push(camp);save();emit({t:'camp',camp});ui.off.run=camp.id;render();
+}
+function offMark(cid,ph){const c=(S.camps||[]).find(x=>x.id===cid);if(c&&!c.sent.includes(ph)){c.sent.push(ph);save();emit({t:'campsent',id:cid,ph});setTimeout(render,300)}}
+async function offShare(){
+  const f=ui.off.file;
+  try{
+    if(f&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:offText(null)});return}
+    if(navigator.share){await navigator.share({text:offText(null)});return}
+  }catch(e){if(e&&e.name==='AbortError')return}
+  ui.toast='Sharing a file needs a phone browser. On a laptop, send the message and attach the file in WhatsApp.';render();
+}
+function customersView(){
+  const sid=S.auth,all=custsOf(sid),q=(ui.cq||'').trim().toLowerCase(),fy=ui.cy||'';
+  const okN=all.filter(c=>c.ok).length,reg=all.filter(c=>c.visits>=3).length,newW=all.filter(c=>S.day-c.first<7).length;
+  const list=all.filter(c=>(!fy||c.year===fy)&&(!q||c.name.toLowerCase().includes(q)||c.phone.includes(q))).sort((a,b)=>b.last-a.last||b.visits-a.visits);
+  const aud=audience(),camp=ui.off.run&&(S.camps||[]).find(c=>c.id===ui.off.run);
+  const tos=[['all','Everyone who said yes'],['regular','Regulars, 3+ visits'],['lapsed','Not seen in 3+ days'],...YEARS.map(y=>[y,y+' only'])];
+  const isImg=ui.off.file&&/^image\//.test(ui.off.file.type);
+  const compose=camp?`<div class="card pad offer"><div class="sec-h" style="margin-bottom:6px"><h3>Sending offer</h3><span class="chip ${camp.sent.length===camp.n?'ok':'warn'} mono">${camp.sent.length} of ${camp.n} sent</span></div>
+    <p class="mute small" style="margin:0 0 10px">Tap each name. WhatsApp opens with the offer ready, press send there.${camp.file?' Attach '+esc(camp.file)+' in that chat, or use Share photo to send it to several chats at once.':''}</p>
+    ${camp.file?`<button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="offShare()">Share ${isImg?'photo':'file'} to WhatsApp</button>`:''}
+    <div class="sendlist">${audience().map(c=>{const done=camp.sent.includes(c.phone);return `<a class="sl ${done?'done':''}" href="https://wa.me/91${c.phone}?text=${encodeURIComponent(offText(c))}" target="_blank" rel="noopener" onclick="offMark(${camp.id},'${c.phone}')"><span><b>${esc(c.name)}</b><span class="mute small mono">${fmtPh(c.phone)}${c.year?', '+c.year:''}</span></span><span class="chip ${done?'ok':'line'}">${done?'Sent':'Send'}</span></a>`}).join('')}</div>
+    <button class="btn ghost lg" onclick="ui.off.run=null;render()">Done, write a new offer</button>
+    <p class="fine">In the live version this goes to everyone at once with the photo or PDF attached, through the WhatsApp Business API. WhatsApp charges about Rs 1 per message, passed on at cost.</p></div>`
+  :`<div class="card pad offer"><div class="sec-h" style="margin-bottom:6px"><h3>Send an offer on WhatsApp</h3></div>
+    <label class="lbl" for="offmsg">Message</label>
+    <textarea id="offmsg" class="input" rows="4" placeholder="Hi {name}, today only: Chicken biryani Rs 99 at ${esc(shopOf(sid).name)}. Show this message at the counter." oninput="ui.off.msg=this.value;document.getElementById('offgo').disabled=!this.value.trim()||!${aud.length}">${esc(ui.off.msg||'')}</textarea>
+    <p class="fine" style="margin-top:6px">{name} becomes each customer's first name.</p>
+    <label class="lbl" style="margin-top:16px">Photo or PDF</label>
+    ${ui.off.file?`<div class="att">${isImg?`<img src="${ui.off.url}" alt="Offer photo preview">`:`<span class="pdf">PDF</span>`}<span class="att-n">${esc(ui.off.file.name)}<small class="mute">${Math.max(1,Math.round(ui.off.file.size/1024))} KB</small></span><button class="btn sm ghost" onclick="offClear()">Remove</button></div>`
+      :`<label class="drop"><input type="file" accept="image/*,application/pdf" onchange="offFile(this)" hidden>Choose a poster photo or PDF menu</label>`}
+    <label class="lbl" for="offto" style="margin-top:16px">Send to</label>
+    <select id="offto" class="input" onchange="ui.off.to=this.value;render()">${tos.map(([v,l])=>`<option value="${v}" ${(ui.off.to||'all')===v?'selected':''}>${l}</option>`).join('')}</select>
+    <button id="offgo" class="btn lg ok" ${aud.length&&(ui.off.msg||'').trim()?'':'disabled'} onclick="offSend()">Send to ${plural(aud.length,'customer')}</button>
+    <p class="fine">Only customers who agreed to get offers are included. Every message lets them reply STOP.</p></div>`;
+  const past=(S.camps||[]).filter(c=>c.sid===sid).slice().reverse().slice(0,4);
+  return `<div class="kpis"><div class="kpi"><span>Customers</span><b>${all.length}</b><small>${newW} new this week</small></div><div class="kpi"><span>Said yes to offers</span><b>${okN}</b></div><div class="kpi"><span>Regulars</span><b>${reg}</b><small>3 or more visits</small></div><div class="kpi"><span>Offers sent</span><b>${sum((S.camps||[]).filter(c=>c.sid===sid),c=>c.sent.length)}</b></div></div>
+  <div class="custs"><div>
+  <div class="bsearch">${ICON.search}<input placeholder="Search name or number" value="${esc(ui.cq||'')}" autocomplete="off" oninput="ui.cq=this.value;clearTimeout(window._cq);window._cq=setTimeout(()=>{const a=document.activeElement;render();const n=document.querySelector('.custs .bsearch input');if(n&&a&&a.tagName==='INPUT'){n.focus();n.setSelectionRange(n.value.length,n.value.length)}},250)"></div>
+  <div class="bcats"><button class="${!fy?'on':''}" onclick="ui.cy='';render()">All years</button>${YEARS.map(y=>`<button class="${fy===y?'on':''}" onclick="ui.cy='${y}';render()">${y} <span class="mono">${all.filter(c=>c.year===y).length}</span></button>`).join('')}</div>
+  ${list.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Name</th><th>WhatsApp</th><th>Year</th><th>Visits</th><th>Spent</th><th>Last visit</th><th>Offers</th></tr></thead><tbody>${list.map(c=>`<tr><td style="color:var(--hi);font-weight:600">${esc(c.name)}</td><td class="mono">${fmtPh(c.phone)}</td><td>${c.year||'<span class="mute">Not given</span>'}</td><td class="mono">${c.visits}</td><td class="mono">${rs(c.spent)}</td><td>${dayLabel(c.last)}</td><td>${c.ok?'<span class="chip ok">Yes</span>':'<span class="chip line">No</span>'}</td></tr>`).join('')}</tbody></table></div>`
+  :`<div class="card pad mute small">${all.length?'Nobody matches this filter.':'No customers yet. Add their WhatsApp number on a bill in Billing and they appear here.'}</div>`}
+  ${past.length?`<h2 class="h2">Recent offers</h2><div class="card list">${past.map(c=>`<div class="it"><div class="it-b"><div class="it-n">${esc(c.msg.slice(0,70))}${c.msg.length>70?'...':''}</div><div class="it-p">${dayLabel(c.day)} at ${fmt(c.at)}${c.file?', with '+esc(c.file):''}</div></div><span class="chip ${c.sent.length===c.n?'ok':'warn'} mono">${c.sent.length} of ${c.n}</span></div>`).join('')}</div>`:''}
+  </div><aside class="baside">${compose}</aside></div>`;
 }
 
 /* ---------- demo dock ---------- */
