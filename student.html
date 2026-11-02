@@ -514,6 +514,30 @@ section{margin-top:44px}
 .sl.done{opacity:.55}
 tr.click{cursor:pointer}
 @media(hover:hover){tr.click:hover td{background:var(--bg)}}
+.an-top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:18px}
+.an-seg{min-width:280px}.an-seg button{padding:9px 14px}.an-dl{width:auto;padding:11px 18px}
+.an-card{margin-bottom:18px}.an-two{margin-bottom:0}.an-two .an-card{margin-bottom:18px}
+.an-ins{margin-bottom:18px}.ins{display:flex;gap:14px;align-items:flex-start;padding:13px 0;border-top:1px solid var(--line)}.ins:first-of-type{border-top:0}
+.ins p{margin:0;line-height:1.5;color:var(--text)}.ins b{color:var(--hi)}.ins-n{flex:none;width:24px;height:24px;border-radius:50%;background:var(--okbg);color:var(--ok);font-size:12px;font-weight:700;display:grid;place-items:center;margin-top:1px}
+.lg{display:flex;gap:16px;font-size:13px;color:var(--mute)}.lg span{display:inline-flex;align-items:center;gap:7px}.lg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.s1{background:#127A52}.s2{background:#B07D1C}
+.chart{display:grid;grid-template-columns:46px minmax(0,1fr);grid-template-rows:200px 24px;margin-top:6px}.chart.short{grid-template-rows:150px 24px}
+.ch-y{position:relative}.ch-y span{position:absolute;right:10px;transform:translateY(50%);font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ch-plot{position:relative;display:flex;align-items:flex-end;border-bottom:1px solid var(--line2)}
+.ch-g{position:absolute;left:0;right:0;border-top:1px dashed var(--line)}
+.ch-col{position:relative;flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;justify-content:center;outline:none}
+.ch-bar{width:min(64%,30px);display:flex;flex-direction:column;gap:2px;transition:opacity .15s}
+.ch-bar i{display:block;min-height:1px}.ch-bar i:first-child{border-radius:4px 4px 0 0}
+.ch-plot:hover .ch-col:not(:hover) .ch-bar{opacity:.4}.ch-col:focus-visible .ch-bar{outline:2px solid var(--hi);outline-offset:2px}
+.ch-col.today .ch-bar{box-shadow:0 0 0 2px var(--s1),0 0 0 3px var(--line2);border-radius:4px 4px 0 0}
+.ch-v{position:absolute;left:50%;transform:translateX(-50%);font-size:11px;color:var(--mute);white-space:nowrap;font-variant-numeric:tabular-nums}
+.ch-x{grid-column:2;display:flex}.ch-x span{flex:1;min-width:0;text-align:center;font-size:11px;color:var(--mute);padding-top:6px;white-space:nowrap;overflow:visible}
+.an-items td{white-space:nowrap}.an-items td:first-child{white-space:normal}
+.an-tbl{margin-top:14px}.an-tbl summary{cursor:pointer;color:var(--mute);font-size:13.5px;font-weight:600}.an-tbl .tblwrap{margin-top:10px;max-height:320px;overflow:auto}
+.sb{display:inline-block;width:110px;height:6px;border-radius:3px;background:var(--s2);vertical-align:middle;margin-right:10px;overflow:hidden}.sb i{display:block;height:100%;background:#127A52;border-radius:3px}
+.hb{display:grid;grid-template-columns:76px minmax(0,1fr) 28px;gap:12px;align-items:center;padding:7px 0;font-size:14px}.hb-t{height:10px;background:var(--s2);border-radius:5px;overflow:hidden}.hb-t i{display:block;height:100%;background:#127A52;border-radius:5px}.hb span:last-child{text-align:right}
+#tip{position:fixed;left:0;top:0;pointer-events:none;background:var(--hi);color:#fff;font-size:12.5px;line-height:1.5;padding:8px 11px;border-radius:10px;z-index:300;opacity:0;transition:opacity .12s;white-space:pre-line;max-width:240px;box-shadow:0 6px 20px rgba(8,47,37,.25)}
+@media(max-width:700px){.an-sh{display:none}.kpi b{font-size:24px}.an-items td,.an-items th{padding-left:12px;padding-right:12px}.an-seg{min-width:0;width:100%}.an-dl{width:100%}.chart{grid-template-columns:40px minmax(0,1fr)}}
 @media print{body *{visibility:hidden!important}.receipt,.receipt *{visibility:visible!important}.receipt{position:fixed;left:0;top:0;border:0;max-width:72mm;padding:0}.rc-void{border-color:#000;color:#000}}
 @media(max-width:1020px){
   .menu-wrap{grid-template-columns:minmax(0,1fr)}.aside{display:none}.cartbar{display:block}
@@ -2924,7 +2948,7 @@ let S = load();
 if(!S.bills)S.bills=[];if(!S.custs)S.custs=[];if(!S.camps)S.camps=[];
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
 window.addEventListener('storage',e=>{if(e.key===K){S=load();render()}});
-const ui = {cu:{},off:{},cq:'',cy:'',bill:{},bmode:'cash',bgot:'',bq:'',bcat:-1,bphone:'',voidArm:null,counted:'',give:{},pad:'',found:null,q:'',demo:false,dockMin:false,sheet:null,pay:{},toast:'',resetArm:false};
+const ui = {ar:30,cu:{},off:{},cq:'',cy:'',bill:{},bmode:'cash',bgot:'',bq:'',bcat:-1,bphone:'',voidArm:null,counted:'',give:{},pad:'',found:null,q:'',demo:false,dockMin:false,sheet:null,pay:{},toast:'',resetArm:false};
 function resetShared(){const f=fresh();S.day=f.day;S.now=f.now;S.orders=[];S.bills=[];S.custs=[];S.camps=[];S.strikes={};S.shops=f.shops}
 const newId = () => Date.now()*1000+Math.floor(Math.random()*1000);
 
@@ -3049,6 +3073,7 @@ const ICON = {
   menu:sv('<path d="M4 5h6a2 2 0 0 1 2 2v12a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v12a2 2 0 0 1 2-2h6z"/>'),
   billing:sv('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>'),
   customers:sv('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'),
+  analytics:sv('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
   closing:sv('<path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/>'),
   settings:sv('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>')
 };
@@ -3506,10 +3531,10 @@ function settingsView(){
 }
 function shopDash(r){
   const s=shopOf(S.auth),st=S.shops[S.auth];
-  const views={counter:counterView,orders:kitchenView,billing:billingView,closing:closingView,customers:customersView,menu:shopMenuView,settings:settingsView};
+  const views={counter:counterView,orders:kitchenView,billing:billingView,closing:closingView,analytics:analyticsView,customers:customersView,menu:shopMenuView,settings:settingsView};
   const v=views[r.name]?r.name:'counter';
-  const titles={counter:'Counter',orders:'Kitchen',billing:'Billing',closing:'Day closing',customers:'Customers',menu:'Menu',settings:'Settings'};
-  const links=[['counter','Counter','shop'],['orders','Kitchen','shop-orders'],['billing','Billing','shop-billing'],['closing','Closing','shop-closing'],['customers','Customers','shop-customers'],['menu','Menu','shop-menu'],['settings','Settings','shop-settings']];
+  const titles={counter:'Counter',orders:'Kitchen',billing:'Billing',closing:'Day closing',analytics:'Analytics',customers:'Customers',menu:'Menu',settings:'Settings'};
+  const links=[['counter','Counter','shop'],['orders','Kitchen','shop-orders'],['billing','Billing','shop-billing'],['closing','Closing','shop-closing'],['analytics','Analytics','shop-analytics'],['customers','Customers','shop-customers'],['menu','Menu','shop-menu'],['settings','Settings','shop-settings']];
   const pending=liveOf(S.auth).filter(o=>o.status==='placed'||o.status==='cooking').length,checks=toCheck(S.auth).length;
   const status=!st.open?'Not taking orders':ordering()?'Taking orders till '+fmt(CUTOFF):'Ordering closed';
   return `<div class="dash"><aside class="side"><div class="brandbox">${tile(s,'lg')}<div><b>${s.name}</b><div class="mute small">Counter</div></div></div>
@@ -3661,6 +3686,128 @@ function closingView(){
   ${all.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Bill no</th><th>Time</th><th>Items</th><th>Paid by</th><th>Amount</th><th></th></tr></thead><tbody>${all.map(b=>`<tr class="click" onclick="ui.sheet={type:'receipt',id:${b.id}};render()"><td class="mono" style="color:var(--hi)">${b.no}</td><td class="mono">${fmt(b.at)}</td><td>${b.items.map(i=>i.q+' x '+esc(i.n)).join(', ')}</td><td>${b.mode==='cash'?'Cash':'UPI'}</td><td class="mono">${rs(b.total)}</td><td>${b.void?'<span class="chip line">Cancelled</span>':'<span class="chip ok">Saved</span>'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="card pad mute small">No counter bills yet. Make one in Billing.</div>'}`;
 }
 
+
+/* ---------- analytics ---------- */
+// Past days are generated sample data (same numbers every time for a shop and day). Today is real: bills + app orders.
+const AN_DAYS=60,SLOT0=660,SLOTW=15,SLOTN=12,SLOTWT=[3,4,5,6,7,8,6,14,20,15,8,4];
+const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],WDL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const SLOW={s1:['Chicken gravy','Orange juice','Grilled cheese sandwich'],s2:['Egg noodles','Kulfi','Rajma rice']};
+const CATW={Meals:3,Biryani:2.6,'Rice bowls':2.4,'Fried rice and noodles':2.2,Tiffin:2,Snacks:2.2,'Chapati and parotta':1.6};
+const anCache={};
+const dateOf = d => new Date(Date.now()+(d-S.day)*864e5);
+const dShort = d => dateOf(d).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+const rsk = n => 'Rs '+Math.round(n).toLocaleString('en-IN');
+const rsc = n => n>=1e5?'Rs '+(n/1e5).toFixed(n>=1e6?0:1)+'L':n>=1e3?'Rs '+(n/1e3).toFixed(n>=1e4?0:1).replace(/\.0$/,'')+'k':'Rs '+Math.round(n);
+const pctOf = (a,b) => b?Math.round(a/b*100):0;
+const slotOf = m => Math.max(0,Math.min(SLOTN-1,Math.floor((m-SLOT0)/SLOTW)));
+function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function anHist(sid){
+  const k=sid+'|'+S.day;if(anCache[k])return anCache[k];
+  const s=shopOf(sid),W=[],out=[];
+  s.menu.forEach(c=>c.items.forEach(it=>W.push([it,SLOW[sid].includes(it.name)?.1:(CATW[c.cat]||1.1)*(it.best?1.9:1)])));
+  const tw=sum(W,x=>x[1]),sw=sum(SLOTWT,x=>x);
+  for(let i=AN_DAYS;i>=1;i--){
+    const d=S.day-i,wd=dateOf(d).getDay();if(wd===0)continue;
+    const r=rng((d+1000)*7919+(sid==='s1'?11:23)),g=(AN_DAYS-i)/AN_DAYS;
+    const base=(sid==='s1'?150:125)*[0,1.1,1,1.05,1,.9,.6][wd]*(1+g*.22)*(.9+.2*r()),appSh=.12+.24*g+(r()-.5)*.05;
+    const day={d,wd,items:{},c:0,a:0,cash:0,upi:0,bills:0,orders:0,slots:Array(SLOTN).fill(0)};
+    W.forEach(([it,w])=>{const q=Math.round(base*1.35*w/tw*(.8+.4*r()));if(!q)return;const a=Math.round(q*appSh);day.items[it.name]={c:q-a,a,amt:q*it.price};day.c+=(q-a)*it.price;day.a+=a*it.price});
+    const v=Object.values(day.items);
+    day.upi=Math.round(day.c*.52+day.a*.9);day.cash=day.c+day.a-day.upi;
+    day.bills=Math.round(sum(v,x=>x.c)/1.5);day.orders=Math.round(sum(v,x=>x.a)/1.4);
+    SLOTWT.forEach((w,j)=>day.slots[j]=(day.c+day.a)*w/sw*(.85+.3*r()));
+    out.push(day);
+  }
+  return anCache[k]=out;
+}
+function anToday(sid){
+  const c=dayClose(sid),day={d:S.day,wd:dateOf(S.day).getDay(),items:{},c:c.cCash+c.cUpi,a:c.aUpi+c.aCash,cash:c.expCash,upi:c.expUpi,bills:c.bills,orders:c.appN,slots:Array(SLOTN).fill(0),today:true};
+  c.items.forEach(i=>day.items[i.n]={c:i.c,a:i.a,amt:i.amt});
+  billsOf(sid,S.day).filter(b=>!b.void).forEach(b=>day.slots[slotOf(b.at)]+=b.total);
+  todays(sid).filter(o=>o.status!=='cancelled'&&!checking(o)).forEach(o=>{const v=o.pay==='upi'?o.total:(o.cashPaid||0);if(v)day.slots[slotOf(o.at)]+=v});
+  return day;
+}
+function anAgg(days){
+  const t={c:0,a:0,cash:0,upi:0,bills:0,orders:0,items:{},slots:Array(SLOTN).fill(0),open:0,wd:{}};
+  days.forEach(x=>{['c','a','cash','upi','bills','orders'].forEach(k=>t[k]+=x[k]);if(!x.today)x.slots.forEach((v,j)=>t.slots[j]+=v);
+    if(x.c+x.a>0)t.open++;if(x.c+x.a>0&&!x.today){const w=t.wd[x.wd]||(t.wd[x.wd]={s:0,n:0});w.s+=x.c+x.a;w.n++}
+    Object.entries(x.items).forEach(([n,i])=>{const m=t.items[n]||(t.items[n]={n,q:0,amt:0,amtF:0});m.q+=i.c+i.a;m.amt+=i.amt;if(!x.today)m.amtF+=i.amt})});
+  t.total=t.c+t.a;
+  // Full days only (today is still running), so averages and trends are fair.
+  const full=days.filter(x=>!x.today&&x.c+x.a>0);t.fullN=full.length;t.fullS=sum(full,x=>x.c+x.a);t.dayAvg=t.fullN?t.fullS/t.fullN:0;
+  return t;
+}
+function anData(sid){
+  const all=anHist(sid).concat([anToday(sid)]),R=ui.ar||30;
+  const cur=all.filter(x=>x.d>S.day-R),prev=all.filter(x=>x.d<=S.day-R&&x.d>S.day-2*R);
+  return {R,cur,a:anAgg(cur),p:anAgg(prev)};
+}
+const trend = (now,before) => {if(!before)return 'New';const p=Math.round((now-before)/before*100);return p===0?'No change':(p>0?'Up ':'Down ')+Math.abs(p)+'%'};
+function niceMax(v){if(v<=0)return 1;const e=Math.pow(10,Math.floor(Math.log10(v))),f=v/e;return [1,1.5,2,2.5,3,4,5,6,8,10].find(s=>s>=f)*e}
+// Bar chart: cols = [{segs:[v1,v2], label, tip, mark}]. One y axis, 3 grid lines, value labels only where asked.
+function barChart(cols,opt={}){
+  const top=niceMax(Math.max(...cols.map(c=>sum(c.segs,x=>x)),1)),ticks=[top/2,top];
+  const lbl=opt.every||1;
+  return `<div class="chart${opt.short?' short':''}"><div class="ch-y">${ticks.map(t=>`<span style="bottom:${t/top*100}%">${opt.money===false?Math.round(t):rsc(t)}</span>`).join('')}<span style="bottom:0">0</span></div>
+  <div class="ch-plot">${ticks.map(t=>`<div class="ch-g" style="bottom:${t/top*100}%"></div>`).join('')}
+  ${cols.map(c=>{const tot=sum(c.segs,x=>x);return `<div class="ch-col${c.today?' today':''}" data-tip="${esc(c.tip)}" tabindex="0" aria-label="${esc(c.tip.replace(/\n/g,', '))}">${c.mark?`<span class="ch-v" style="bottom:calc(${tot/top*100}% + 4px)">${esc(c.mark)}</span>`:''}<div class="ch-bar" style="height:${tot/top*100}%">${c.segs.map((v,j)=>({v,j})).reverse().filter(x=>x.v>0).map(x=>`<i class="s${x.j+1}" style="flex:${x.v}"></i>`).join('')}</div></div>`}).join('')}</div>
+  <div class="ch-x">${cols.map((c,i)=>`<span>${(cols.length-1-i)%lbl===0?esc(c.label):''}</span>`).join('')}</div></div>`;
+}
+function anInsights(sid,D){
+  const a=D.a,out=[],w=Object.entries(a.wd).map(([k,v])=>({k:+k,avg:v.s/v.n})).sort((x,y)=>y.avg-x.avg);
+  if(w.length>=3){const b=w[0],l=w[w.length-1];out.push(`<b>${WDL[b.k]}</b> is your best day, about ${rsk(b.avg)}. ${WDL[l.k]} sells ${pctOf(b.avg-l.avg,b.avg)}% less, so cook less that day.`)}
+  let bi=0;for(let j=1;j<SLOTN-1;j++)if(a.slots[j]+a.slots[j+1]>a.slots[bi]+a.slots[bi+1])bi=j;
+  const bs=pctOf(a.slots[bi]+a.slots[bi+1],sum(a.slots,x=>x));
+  if(bs)out.push(`<b>${bs}% of your sales</b> come between ${fmt(SLOT0+bi*SLOTW)} and ${fmt(SLOT0+(bi+2)*SLOTW)}. Keep two people at the counter in that half hour.`);
+  const it=Object.values(a.items).sort((x,y)=>y.amt-x.amt);
+  if(it.length){out.push(`<b>${esc(it[0].n)}</b> brings ${pctOf(it[0].amt,a.total)}% of your sales. Never let it run out before 1:15 PM.`);
+    const slow=it.filter(x=>x.q>0).slice(-2);if(it.length>5&&slow.length===2)out.push(`<b>${esc(slow[0].n)}</b> and <b>${esc(slow[1].n)}</b> sold only ${slow[0].q+slow[1].q} plates in ${D.R} days. Drop them, or push them with an offer on WhatsApp.`)}
+  const sNow=pctOf(a.a,a.total),sBefore=pctOf(D.p.a,D.p.total);
+  if(sNow>sBefore&&sBefore)out.push(`<b>App orders</b> went from ${sBefore}% to ${sNow}% of sales. Every app order is one student less in the queue.`);
+  return out;
+}
+function anCsv(sid){
+  const D=anData(sid),L=[['Date','Day','Counter bills','App orders','Counter sales','App sales','Cash','UPI','Taxable value','CGST 2.5%','SGST 2.5%','Total sales'].join(',')];
+  D.cur.forEach(x=>{const t=tax(x.c+x.a);L.push([billDate(x.d).replace(/,/g,''),WDL[x.wd],x.bills,x.orders,x.c,x.a,x.cash,x.upi,t.taxable.toFixed(2),t.cgst.toFixed(2),t.sgst.toFixed(2),x.c+x.a].join(','))});
+  const t=tax(D.a.total);L.push(['Total','',D.a.bills,D.a.orders,D.a.c,D.a.a,D.a.cash,D.a.upi,t.taxable.toFixed(2),t.cgst.toFixed(2),t.sgst.toFixed(2),D.a.total].join(','));
+  const u=URL.createObjectURL(new Blob(['﻿'+L.join('\r\n')],{type:'text/csv'})),el=document.createElement('a');
+  el.href=u;el.download=shopOf(sid).name.replace(/\s+/g,'-')+'-sales-last-'+D.R+'-days.csv';document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  ui.toast='Sales sheet downloaded. It opens in Excel, ready for your CA.';render();
+}
+function anRange(n){ui.ar=n;render()}
+function analyticsView(){
+  const sid=S.auth,D=anData(sid),a=D.a,p=D.p,R=D.R,tk=a.bills+a.orders;
+  const daily=D.cur.map(x=>({segs:[x.c,x.a],label:x.today?'Today':dShort(x.d),today:x.today,tip:`${x.today?'Today, so far':WD[x.wd]+' '+dShort(x.d)}\nTotal ${rsk(x.c+x.a)}\nCounter ${rsk(x.c)}\nApp ${rsk(x.a)}`}));
+  const wds=[1,2,3,4,5,6].map(k=>{const v=a.wd[k];const avg=v?v.s/v.n:0;return {segs:[avg],label:WD[k],mark:avg?rsc(avg):'',tip:`${WDL[k]}\nAverage ${rsk(avg)}${v?'\n'+v.n+' days':''}`}});
+  const peak=a.slots.indexOf(Math.max(...a.slots));
+  const slots=a.slots.map((v,j)=>({segs:[v/Math.max(a.fullN,1)],label:fmt(SLOT0+j*SLOTW).replace(' PM','').replace(' AM',''),mark:j===peak?'Rush':'',tip:`${fmt(SLOT0+j*SLOTW)} to ${fmt(SLOT0+(j+1)*SLOTW)}\nAverage ${rsk(v/Math.max(a.fullN,1))} a day`}));
+  const items=Object.values(a.items).sort((x,y)=>y.amt-x.amt),top=items.slice(0,8),slow=items.filter(x=>x.q>0).slice(-3).reverse(),max=top.length?top[0].amt:1;
+  const cs=custsOf(sid),yrs=YEARS.map(y=>{const l=cs.filter(c=>c.year===y);return {y,n:l.length,s:sum(l,c=>c.spent)}}),ymax=Math.max(...yrs.map(x=>x.n),1);
+  const reg=cs.filter(c=>c.visits>=3).length,lapsed=cs.filter(c=>S.day-c.last>=3).length;
+  const ins=anInsights(sid,D),avgBill=tk?a.total/tk:0,pAvg=(p.bills+p.orders)?p.total/(p.bills+p.orders):0,sh=pctOf(a.a,a.total),psh=pctOf(p.a,p.total);
+  return `<div class="an-top"><div class="seg an-seg"><button class="${R===7?'on':''}" onclick="anRange(7)">Last 7 days</button><button class="${R===30?'on':''}" onclick="anRange(30)">Last 30 days</button></div>
+  <button class="btn ghost an-dl" onclick="anCsv('${sid}')">Download sales for your CA</button></div>
+  <div class="kpis"><div class="kpi"><span>Sales, ${R} days</span><b>${rsk(a.total)}</b><small>Per day ${trend(a.dayAvg,p.dayAvg).toLowerCase()} on the ${R} days before</small></div>
+  <div class="kpi"><span>Average day</span><b>${rsk(a.dayAvg)}</b><small>${a.fullN} full days, today not counted</small></div>
+  <div class="kpi"><span>Average bill</span><b>${rsk(avgBill)}</b><small>${trend(avgBill,pAvg)} on before</small></div>
+  <div class="kpi"><span>App share</span><b>${sh}%</b><small>${psh?'Was '+psh+'% before':'Of all sales'}</small></div></div>
+  ${ins.length?`<div class="card pad an-ins"><div class="sec-h" style="margin-bottom:2px"><h3>What to do this week</h3><span class="mute small">Worked out from your sales</span></div>${ins.map((t,i)=>`<div class="ins"><span class="ins-n">${i+1}</span><p>${t}</p></div>`).join('')}</div>`:''}
+  <div class="card pad an-card"><div class="sec-h"><h3>Sales by day</h3><div class="lg"><span><i class="s1"></i>Counter</span><span><i class="s2"></i>App</span></div></div>
+  ${barChart(daily,{every:R===7?1:5,last:true})}
+  <details class="an-tbl"><summary>See the daily numbers</summary><div class="tblwrap"><table class="tbl"><thead><tr><th>Date</th><th>Counter</th><th>App</th><th>Total</th></tr></thead><tbody>${D.cur.slice().reverse().map(x=>`<tr><td>${x.today?'Today':WD[x.wd]+' '+dShort(x.d)}</td><td class="mono">${rsk(x.c)}</td><td class="mono">${rsk(x.a)}</td><td class="mono" style="color:var(--hi)">${rsk(x.c+x.a)}</td></tr>`).join('')}</tbody></table></div></details></div>
+  <div class="cgrid an-two"><div class="card pad an-card"><div class="sec-h"><h3>Busy times</h3><span class="mute small">Average sales every 15 minutes</span></div>${barChart(slots,{every:2,short:true})}</div>
+  <div class="card pad an-card"><div class="sec-h"><h3>Best days</h3><span class="mute small">Average sales by weekday</span></div>${barChart(wds,{short:true})}</div></div>
+  <h2 class="h2">What sells</h2>
+  ${top.length?`<div class="card tblwrap"><table class="tbl an-items"><thead><tr><th>Item</th><th>Sold</th><th>Sales</th><th class="an-sh">Share of sales</th><th>Per day vs before</th></tr></thead><tbody>${top.map(i=>{const pi=p.items[i.n];return `<tr><td>${esc(i.n)}</td><td class="mono">${i.q}</td><td class="mono" style="color:var(--hi)">${rsk(i.amt)}</td><td class="an-sh"><div class="sb"><i style="width:${i.amt/max*100}%"></i></div><span class="mono small">${pctOf(i.amt,a.total)}%</span></td><td class="small">${trend(i.amtF/Math.max(a.fullN,1),pi?pi.amtF/Math.max(p.fullN,1):0)}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="card pad mute small">No sales in this range yet.</div>'}
+  <div class="cgrid" style="margin-top:18px"><div class="card pad"><div class="sec-h" style="margin-bottom:6px"><h3>Slow movers</h3><a class="fine" style="margin:0" href="#shop-customers">Run an offer</a></div>
+  ${slow.length?slow.map(i=>`<div class="mrow"><span>${esc(i.n)}</span><span class="mono">${i.q} sold, ${rsk(i.amt)}</span></div>`).join(''):'<p class="mute small">Nothing yet.</p>'}
+  <p class="fine" style="margin-top:12px">These sold the least in ${R} days. Cut them, cook fewer, or bundle them with a top seller.</p></div>
+  <div class="card pad"><div class="sec-h" style="margin-bottom:6px"><h3>Who buys</h3><a class="fine" style="margin:0" href="#shop-customers">${cs.length} saved customers</a></div>
+  ${yrs.map(x=>`<div class="hb" data-tip="${esc(x.y+'\n'+x.n+' customers\nSpent '+rsk(x.s))}"><span>${x.y}</span><div class="hb-t"><i style="width:${x.n/ymax*100}%"></i></div><span class="mono small">${x.n}</span></div>`).join('')}
+  <div class="mrow" style="margin-top:10px"><span>Regulars, 3 or more visits</span><b class="mono">${reg}</b></div><div class="mrow"><span>Not seen for 3 days or more</span><b class="mono">${lapsed}</b></div></div></div>
+  <p class="fine" style="margin-top:18px">Demo: days before today are sample numbers so the charts have history. Today is real, from your bills and app orders, and updates as you bill.</p>`;
+}
+
 /* ---------- customers and WhatsApp offers ---------- */
 const YEARS=['1st year','2nd year','3rd year','4th year','Staff'];
 const custsOf = sid => (S.custs||[]).filter(c=>c.sid===sid);
@@ -3786,6 +3933,13 @@ function render(){
   if(r.name==='menu')applyFilter();
   if(ui.toast){clearTimeout(toastTimer);toastTimer=setTimeout(()=>{ui.toast='';render()},6000)}
 }
+const tipEl=document.createElement('div');tipEl.id='tip';document.body.appendChild(tipEl);
+function tipAt(e){const t=e.target.closest&&e.target.closest('[data-tip]');if(!t){tipEl.style.opacity=0;return}
+  tipEl.textContent=t.dataset.tip;const r=tipEl.getBoundingClientRect(),b=t.getBoundingClientRect(),cx=e.clientX||b.left+b.width/2,cy=e.clientY||b.top;
+  let x=cx+14,y=cy-r.height-12;if(x+r.width>innerWidth-8)x=cx-r.width-14;if(x<8)x=8;if(y<8)y=cy+18;tipEl.style.transform=`translate(${x}px,${y}px)`;tipEl.style.opacity=1}
+document.addEventListener('mousemove',tipAt);document.addEventListener('focusin',tipAt);
+document.addEventListener('click',e=>{if(e.target.closest('[data-tip]'))tipAt(e);else tipEl.style.opacity=0});
+addEventListener('scroll',()=>tipEl.style.opacity=0,{passive:true});
 render();
 connect();
 flush();
