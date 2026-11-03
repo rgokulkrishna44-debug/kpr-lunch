@@ -3104,24 +3104,70 @@ function back(fb){if(depth>0){history.back();return}go(fb)}
 window.addEventListener('hashchange',()=>{depth++;ui.sheet=null;ui.q='';render();window.scrollTo(0,0)});
 
 /* ---------- student actions ---------- */
-function rollProblem(v){
-  if(!v)return 'Enter your register number, for example 24CS068';
-  if(!ROLL_RE.test(v))return 'Not a valid register number. Use 2 digits, 2 letters, 3 digits';
-  const y=+v.slice(0,2);
-  if(y<ROLL_YEARS[0]||y>ROLL_YEARS[1])return 'Check the first 2 digits. They are your joining year, like 24';
-  return '';
+const who = () => (S.name||'').trim().split(' ')[0]||(S.email||'').split('@')[0];
+const lg = () => ui.lg||(ui.lg={step:'email',email:'',code:'',busy:false,err:'',cool:0,name:'',phone:'',pt:'',uid:''});
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+function loginForm(){
+  const g=lg();
+  if(g.step==='profile')return `<p class="fine" style="margin:0 0 10px">Code accepted. Since this is your first time, tell us who you are. We only ask once.</p>
+  <label class="lbl" for="lgname">Your name</label>
+  <input id="lgname" class="input" maxlength="60" autocomplete="name" enterkeyhint="next" placeholder="Your full name" value="${esc(g.name)}" oninput="lgName(this)" onkeydown="if(event.key==='Enter'){const i=document.getElementById('lgphone');if(i)i.focus()}">
+  <label class="lbl" for="lgphone" style="margin-top:10px">Phone number</label>
+  <div class="row2"><input id="lgphone" class="input mono" inputmode="numeric" maxlength="10" autocomplete="tel-national" enterkeyhint="go" placeholder="10 digit mobile number" value="${esc(g.phone)}" oninput="lgPhone(this)" onkeydown="if(event.key==='Enter')profSave()"><button class="btn" id="lgbtn" onclick="profSave()" ${g.busy?'disabled':''}>${g.busy?'Saving':'Continue'}</button></div>
+  <div id="lgErr" class="err">${esc(g.err)}</div>
+  <p class="fine" style="margin-top:2px">Gmail: <b>${esc(g.email)}</b>. <button onclick="lgBack()">Use a different Gmail</button></p>`;
+  if(g.step==='code')return `<label class="lbl" for="lgcode">6 digit code</label>
+  <div class="row2"><input id="lgcode" class="input mono" inputmode="numeric" maxlength="6" autocomplete="one-time-code" enterkeyhint="go" placeholder="123456" value="${esc(g.code)}" oninput="lgCode(this)" onkeydown="if(event.key==='Enter')otpVerify()"><button class="btn" id="lgbtn" onclick="otpVerify()" ${g.busy?'disabled':''}>${g.busy?'Checking':'Verify'}</button></div>
+  <div id="lgErr" class="err">${esc(g.err)}</div>
+  <p class="fine" style="margin-top:2px">We sent a code to <b>${esc(g.email)}</b>. It works for 10 minutes. Check spam if you do not see it.
+  <button id="lgre" onclick="otpSend()" ${g.cool>0?'disabled':''}>${g.cool>0?'Send again in '+g.cool+' s':'Send again'}</button> <button onclick="lgBack()">Use a different Gmail</button></p>`;
+  return `<label class="lbl" for="lgmail">Gmail address</label>
+  <div class="row2"><input id="lgmail" class="input" type="email" inputmode="email" maxlength="120" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" placeholder="you@gmail.com" value="${esc(g.email)}" oninput="lgMail(this)" onkeydown="if(event.key==='Enter')otpSend()"><button class="btn" id="lgbtn" onclick="otpSend()" ${g.busy?'disabled':''}>${g.busy?'Sending':'Send code'}</button></div>
+  <div id="lgErr" class="err">${esc(g.err)}</div>
+  <p class="fine" style="margin-top:2px">We email you a 6 digit code. No password to remember. Your orders and history stay with your Gmail.</p>`;
 }
-function setRoll(v){
-  v=(typeof v==='string'?v:document.getElementById('roll').value).replace(/[\s\-_.\/]/g,'').toUpperCase();
-  const why=rollProblem(v),e=document.getElementById('rollErr');
-  if(why){if(e)e.textContent=why;const i=document.getElementById('roll');if(i)i.classList.add('bad');return}
-  S.roll=v;save();go('');
+function lgMail(el){const g=lg();g.email=el.value.trim();g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
+function lgName(el){const g=lg();g.name=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
+function lgPhone(el){el.value=el.value.replace(/\D/g,'').slice(0,10);const g=lg();g.phone=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
+function lgCode(el){el.value=el.value.replace(/\D/g,'').slice(0,6);const g=lg();g.code=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent='';if(g.code.length===6)otpVerify()}
+function lgBack(){ui.lg={step:'email',email:lg().email,code:'',busy:false,err:'',cool:0,name:'',phone:'',pt:'',uid:''};render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
+function otpPost(path,data){return fetch(API+'/'+path,{method:'POST',body:new URLSearchParams(data)}).then(r=>r.json()).catch(()=>({ok:false,error:'No connection. Check your internet and try again.'}))}
+let lgTimer=0;
+function lgTick(){clearInterval(lgTimer);lgTimer=setInterval(()=>{const g=lg();if(g.cool>0)g.cool--;const b=document.getElementById('lgre');if(b){b.disabled=g.cool>0;b.textContent=g.cool>0?'Send again in '+g.cool+' s':'Send again'}if(g.cool<=0)clearInterval(lgTimer)},1000)}
+async function otpSend(){
+  const g=lg();if(g.busy||(g.step==='code'&&g.cool>0))return;
+  const mail=(g.email||'').trim().toLowerCase();
+  if(!EMAIL_RE.test(mail)||mail.length>120){g.err='Enter your Gmail address, like you@gmail.com';render();return}
+  g.busy=true;g.err='';g.email=mail;render();
+  const r=await otpPost('otp-send',{email:mail});
+  g.busy=false;
+  if(r&&r.ok){g.step='code';g.code='';g.err='';g.cool=60;render();lgTick();setTimeout(()=>{const i=document.getElementById('lgcode');if(i)i.focus()},50)}
+  else{g.err=(r&&r.error)||'Could not send the code. Try again.';render()}
 }
-function rollTyping(el){
-  el.value=el.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
-  el.classList.remove('bad');document.getElementById('rollErr').textContent='';
+async function otpVerify(){
+  const g=lg();if(g.busy)return;
+  if(!/^\d{6}$/.test(g.code||'')){g.err='Type the 6 digit code from your email';render();return}
+  g.busy=true;g.err='';render();
+  const r=await otpPost('otp-verify',{email:g.email,code:g.code});
+  g.busy=false;
+  if(r&&r.ok&&r.uid&&r.isNew&&r.pt){g.step='profile';g.pt=r.pt;g.uid=r.uid;g.err='';clearInterval(lgTimer);render();setTimeout(()=>{const i=document.getElementById('lgname');if(i)i.focus()},50)}
+  else if(r&&r.ok&&r.uid&&r.name&&r.phone){S.email=g.email;S.roll=r.uid;S.name=r.name;S.phone=r.phone;ui.lg=null;clearInterval(lgTimer);save();go('')}
+  else{g.err=(r&&r.error)||'Could not check the code. Try again.';g.code='';render();setTimeout(()=>{const i=document.getElementById('lgcode');if(i)i.focus()},50)}
 }
-function logout(){S.roll='';ui.sheet=null;save();go('')}
+async function profSave(){
+  const g=lg();if(g.busy)return;
+  const nm=(g.name||'').trim().replace(/\s+/g,' ');
+  if(nm.length<2){g.err='Enter your name';render();setTimeout(()=>{const i=document.getElementById('lgname');if(i)i.focus()},50);return}
+  if(!/^[6-9]\d{9}$/.test(g.phone||'')){g.err='Enter a valid 10 digit phone number';render();setTimeout(()=>{const i=document.getElementById('lgphone');if(i)i.focus()},50);return}
+  g.busy=true;g.err='';render();
+  const r=await otpPost('profile',{email:g.email,pt:g.pt,name:nm,phone:g.phone});
+  g.busy=false;
+  if(r&&r.ok&&r.uid){S.email=g.email;S.roll=r.uid;S.name=r.name||nm;S.phone=r.phone||g.phone;ui.lg=null;clearInterval(lgTimer);save();go('')}
+  else{g.err=(r&&r.error)||'Could not save. Try again.';render()}
+}
+/* test and demo helper: sign in without email */
+function setRoll(v){S.roll=v;S.email=v.toLowerCase()+'@demo.test';S.name=S.name||v;S.phone=S.phone||'9000000000';save();go('')}
+function logout(){S.roll='';S.email='';S.name='';S.phone='';ui.lg=null;ui.sheet=null;save();go('')}
 function qty(sid,id,d){const c=cartOf(sid);c[id]=Math.max(0,(c[id]||0)+d);if(!c[id])delete c[id];save();render()}
 function pickPay(sid,m){ui.pay[sid]=m;render()}
 function payMethod(sid){const m=ui.pay[sid]||'upi';return m==='cash'&&strikes()>=STRIKE_LIMIT?'upi':m}
@@ -3264,7 +3310,7 @@ function sampleOrders(){
 function studentNav(r){
   return `<header class="nav"><div class="nav-in"><a class="logo" href="#"><span class="mark">K</span>KPR Lunch</a><span class="sp"></span>
   <a class="navlink hide-m ${r.name==='home'||r.name==='menu'?'on':''}" href="#">Shops</a><a class="navlink ${r.name==='orders'||r.name==='order'?'on':''}" href="#orders">My orders</a>
-  <button class="me" aria-label="Account ${esc(S.roll)}" onclick="openSheet('account')"><i>${ICON.user}</i><span class="rn">${esc(S.roll)}</span></button></div></header>`;
+  <button class="me" aria-label="Account ${esc(who())}" onclick="openSheet('account')"><i>${ICON.user}</i><span class="rn">${esc(who())}</span></button></div></header>`;
 }
 const footer = () => `<footer class="foot"><span>KPR Lunch for KPR Institute of Engineering and Technology</span></footer>`;
 
@@ -3274,10 +3320,7 @@ function studentLogin(){
    <p class="eyebrow"><span class="live ${ordering()?'':'off'}"></span>KPR Institute of Engineering and Technology</p>
    <h1 class="display">Lunch, without<br>the queue.</h1>
    <p class="lead">Order from your classroom. Walk to the counter, say your 4 digit token and collect in about <b>two minutes</b>.</p>
-   <div class="signin"><label class="lbl" for="roll">Register number</label>
-    <div class="row2"><input id="roll" class="input mono" maxlength="7" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" placeholder="24CS068" oninput="rollTyping(this)" onkeydown="if(event.key==='Enter')setRoll()"><button class="btn" onclick="setRoll()">Continue</button></div>
-    <div id="rollErr" class="err"></div>
-    <p class="fine" style="margin-top:2px">Like 24CS068: joining year, department, 3 digit number. Your orders and history stay with it. Demo: <button onclick="setRoll('24CS101')">continue as 24CS101</button></p></div>
+   <div class="signin">${loginForm()}</div>
    <div class="steps"><div><span class="mono">01</span>Order by ${fmt(CUTOFF)}</div><div><span class="mono">02</span>GPay or pay at the counter</div><div><span class="mono">03</span>Say your token, collect</div></div>
   </div>
   <div><div class="stack">${SHOPS.map((s,i)=>{const sp=itemOf(s,S.shops[s.id].special);return `<div class="pillx" style="background:${PILLS[i][0]};color:${PILLS[i][1]};z-index:${i+1};animation-delay:${(.12+i*.09).toFixed(2)}s"><div><b>${s.name}</b><span>${esc(sp.name)}</span></div><em>${rs(sp.price)}</em></div>`}).join('')}</div>
@@ -3403,7 +3446,7 @@ function ordersPage(){
   const spent=mine.filter(o=>o.status==='collected').reduce((a,o)=>a+o.total,0);
   const days=[...new Set(mine.map(o=>o.day))].sort((a,b)=>b-a);
   const row=o=>{const s=shopOf(o.shop),a=isActive(o);return `<div class="orow">${tile(s)}<div class="orow-b"><a href="#order-${o.id}"><div class="orow-t"><b>${s.name}</b>${a?`<span class="mono small">${checking(o)?'Checking GPay':'Token '+o.token}</span>`:''}<span class="tot">${rs(o.total)}</span></div><div class="mute small clamp" style="margin-top:2px">${itemsText(o)}</div></a><div class="orow-m">${stChip(o)}<span class="mute small">${fmt(o.at)}, ${o.pay==='upi'?'GPay':'Cash'}</span>${a?`<a class="btn sm" href="#order-${o.id}">View token</a>`:`<button class="btn sm ghost" onclick="orderAgain(${o.id})">Order again</button>`}</div></div></div>`};
-  return `<main class="page mid"><section class="hero" style="padding-bottom:0"><p class="eyebrow">Register number ${esc(S.roll)}</p><h1 class="display" style="font-size:clamp(36px,5vw,52px)">My orders</h1>
+  return `<main class="page mid"><section class="hero" style="padding-bottom:0"><p class="eyebrow">Signed in as ${esc(who())}</p><h1 class="display" style="font-size:clamp(36px,5vw,52px)">My orders</h1>
   <p class="lead sm">${plural(mine.length,'order')}, ${rs(spent)} collected so far</p></section>
   ${mine.length?days.map(d=>`<section style="margin-top:36px"><div class="sec-h"><h2>${dayLabel(d)}</h2></div><div class="olist">${mine.filter(o=>o.day===d).map(row).join('')}</div></section>`).join(''):`<div class="card empty" style="margin-top:28px">No orders yet.<br><a class="btn" href="#" style="margin-top:18px">Pick a shop</a></div>`}</main>`;
 }
@@ -3427,12 +3470,14 @@ function sheetHtml(){
   }else{
     const k=strikes(),n=S.orders.filter(o=>o.roll===S.roll&&o.status!=='cancelled').length;
     body=`<div class="sheet-h"><b>Your account</b><button class="x" onclick="closeSheet()">Close</button></div>
-    <div class="acc"><div class="lbl" style="margin:0">Register number</div><div class="acc-r">${esc(S.roll)}</div></div>
+    <div class="acc"><div class="lbl" style="margin:0">Name</div><div class="acc-r">${esc(S.name)}</div></div>
+    <div class="acc"><div class="lbl" style="margin:0">Phone</div><div class="acc-r">${esc(S.phone)}</div></div>
+    <div class="acc"><div class="lbl" style="margin:0">Gmail</div><div class="acc-r">${esc(S.email)}</div></div>
     <div class="kv"><span>Orders placed</span><b class="mono">${n}</b></div>
     <div class="kv"><span>Uncollected cash orders</span><b class="mono ${k?'bad':''}">${k}</b></div>
     <p class="fine">${k>=STRIKE_LIMIT?'Pay at counter is paused for you. GPay orders work as usual.':`Pay at counter pauses after ${STRIKE_LIMIT} uncollected cash orders.`}</p>
     <button class="btn ghost lg" onclick="ui.sheet=null;go('orders')">See my orders</button>
-    <button class="btn ghost lg" style="margin-top:8px" onclick="logout()">Use a different register number</button>`;
+    <button class="btn ghost lg" style="margin-top:8px" onclick="logout()">Sign out</button>`;
   }
   return `<div class="sheet-bg" onclick="if(event.target===this)closeSheet()"><div class="sheet">${body}</div></div>`;
 }
@@ -3509,7 +3554,7 @@ function kitchenView(){
   return `${kpis()}<div class="card pad"><div class="sec-h"><h3>To cook now</h3><span class="mute small">${held?plural(held,'cash order')+' held until the student taps I\'m coming':''}</span></div>
   ${Object.keys(agg).length?`<div class="agg">${Object.entries(agg).sort((a,b)=>b[1]-a[1]).map(([n,q])=>`<span><b>${q}</b>${esc(n)}</span>`).join('')}</div>`:'<p class="mute small" style="margin:0">Nothing to cook right now.</p>'}</div>
   <div class="board">${col('placed','New')}${col('cooking','Cooking')}${col('ready','Ready')}${col('hold','On hold')}</div>
-  ${done.length?`<h2 class="h2">Finished today</h2><div class="card tblwrap"><table class="tbl"><thead><tr><th>Token</th><th>Register no</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>${done.map(o=>`<tr><td class="mono" style="color:var(--hi)">${o.token}</td><td class="mono">${esc(o.roll)}</td><td>${itemsText(o)}</td><td class="mono">${rs(o.total)}</td><td>${o.ps==='no'?'GPay not received':o.pay==='upi'?'GPay':'Cash'}</td><td>${stChip(o)}</td></tr>`).join('')}</tbody></table></div>`:''}`;
+  ${done.length?`<h2 class="h2">Finished today</h2><div class="card tblwrap"><table class="tbl"><thead><tr><th>Token</th><th>Student</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>${done.map(o=>`<tr><td class="mono" style="color:var(--hi)">${o.token}</td><td class="mono">${esc(o.roll)}</td><td>${itemsText(o)}</td><td class="mono">${rs(o.total)}</td><td>${o.ps==='no'?'GPay not received':o.pay==='upi'?'GPay':'Cash'}</td><td>${stChip(o)}</td></tr>`).join('')}</tbody></table></div>`:''}`;
 }
 function shopMenuView(){
   const s=shopOf(S.auth),st=S.shops[S.auth],sp=itemOf(s,st.special);
@@ -3590,6 +3635,12 @@ function receiptText(b){
   L.push('','Thank you, visit again');return L.join('\n');
 }
 function waLink(b){const p=(ui.bphone||b.cphone||'').replace(/\D/g,'');return 'https://wa.me/'+(p.length===10?'91'+p:'')+'?text='+encodeURIComponent(receiptText(b))}
+function waAuto(id){
+  const b=billOf(id),p=(ui.bphone||b.cphone||'').replace(/\D/g,'').slice(-10);
+  if(!/^[6-9]\d{9}$/.test(p)){ui.wamsg={id,ok:false,t:'Type the 10 digit WhatsApp number first.'};render();return}
+  ui.wabusy=1;render();
+  apiPost('wa',{sid:b.sid,to:p,msg:receiptText(b)}).then(r=>{ui.wabusy=0;ui.wamsg={id,ok:!!(r&&r.ok),t:r&&r.ok?'Bill sent on WhatsApp to '+fmtPh(p)+'.':'Could not send. '+(r&&r.error?r.error:'Check the shop PIN and the connection.')};render()});
+}
 function phoneIn(v,id){ui.bphone=v.replace(/\D/g,'').slice(-10);const a=document.getElementById('wa');if(a)a.href=waLink(billOf(id))}
 function receiptHtml(b){
   const s=shopOf(b.sid),t=tax(b.total);
@@ -3610,7 +3661,9 @@ function receiptSheet(){
   ${receiptHtml(b)}
   <div class="racts"><label class="lbl" for="wph" style="margin:6px 0 0">Customer WhatsApp number, optional</label>
   <input id="wph" class="input mono" inputmode="numeric" placeholder="98765 43210" value="${esc(ui.bphone||b.cphone||'')}" oninput="phoneIn(this.value,${b.id})">
-  <div class="row2"><a id="wa" class="btn" href="${esc(waLink(b))}" target="_blank" rel="noopener">Send on WhatsApp</a><button class="btn ghost" onclick="window.print()">Print bill</button></div>
+  <div class="row2">${pinOf(b.sid)?`<button id="wauto" class="btn" onclick="waAuto(${b.id})" ${ui.wabusy?'disabled':''}>${ui.wabusy?'Sending':'Send on WhatsApp'}</button>`:`<a id="wa" class="btn" href="${esc(waLink(b))}" target="_blank" rel="noopener">Send on WhatsApp</a>`}<button class="btn ghost" onclick="window.print()">Print bill</button></div>
+  ${ui.wamsg&&ui.wamsg.id===b.id?`<p id="wamsg" class="small" style="margin:0;text-align:center;font-weight:600;color:${ui.wamsg.ok?'#127A52':'#A23B2A'}">${esc(ui.wamsg.t)}</p>`:''}
+  ${pinOf(b.sid)?`<a id="wa" class="fine" style="justify-self:center" href="${esc(waLink(b))}" target="_blank" rel="noopener">or open it in my own WhatsApp</a>`:''}
   <button class="btn ok lg" style="margin-top:4px" onclick="closeSheet()">New bill</button>
   ${b.void?'':`<button class="fine" style="justify-self:center" onclick="voidBill(${b.id})">${ui.voidArm===b.id?'Tap again to cancel this bill':'Cancel this bill'}</button>`}</div>`;
 }
@@ -3909,6 +3962,14 @@ function offSend(){
   (S.camps=S.camps||[]).push(camp);save();emit({t:'camp',camp});apiPost('offer',{sid:S.auth,msg:camp.msg,file:camp.file,audience:camp.to,n:camp.n});ui.off.run=camp.id;render();
 }
 function offMark(cid,ph){const c=(S.camps||[]).find(x=>x.id===cid);if(c&&!c.sent.includes(ph)){c.sent.push(ph);save();emit({t:'campsent',id:cid,ph});setTimeout(render,300)}}
+async function offAuto(cid){
+  const camp=(S.camps||[]).find(x=>x.id===cid);if(!camp||ui.offbusy)return;
+  const list=audience().filter(c=>!camp.sent.includes(c.phone));let ok=0,bad=0;
+  for(let i=0;i<list.length;i++){ui.offbusy=(i+1)+' of '+list.length;render();
+    const r=await apiPost('wa',{sid:camp.sid,to:list[i].phone,msg:offText(list[i])});
+    if(r&&r.ok){ok++;offMark(cid,list[i].phone)}else bad++}
+  ui.offbusy=0;ui.toast=ok+' sent'+(bad?', '+bad+' failed':'')+'.';render();
+}
 async function offShare(){
   const f=ui.off.file;
   try{
@@ -3930,8 +3991,9 @@ function customersView(){
     <p class="mute small" style="margin:0 0 10px">Tap each name. WhatsApp opens with the offer ready, press send there.${camp.file?' Attach '+esc(camp.file)+' in that chat, or use Share photo to send it to several chats at once.':''}</p>
     ${camp.file?`<button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="offShare()">Share ${isImg?'photo':'file'} to WhatsApp</button>`:''}
     <div class="sendlist">${audience().map(c=>{const done=camp.sent.includes(c.phone);return `<a class="sl ${done?'done':''}" href="https://wa.me/91${c.phone}?text=${encodeURIComponent(offText(c))}" target="_blank" rel="noopener" onclick="offMark(${camp.id},'${c.phone}')"><span><b>${esc(c.name)}</b><span class="mute small mono">${fmtPh(c.phone)}${c.year?', '+c.year:''}</span></span><span class="chip ${done?'ok':'line'}">${done?'Sent':'Send'}</span></a>`}).join('')}</div>
+    ${pinOf(camp.sid)&&camp.sent.length<camp.n?`<button class="btn lg" style="margin-bottom:8px" onclick="offAuto(${camp.id})" ${ui.offbusy?'disabled':''}>${ui.offbusy?'Sending '+ui.offbusy:'Send to all automatically'}</button>`:''}
     <button class="btn ghost lg" onclick="ui.off.run=null;render()">Done, write a new offer</button>
-    <p class="fine">In the live version this goes to everyone at once with the photo or PDF attached, through the WhatsApp Business API. WhatsApp charges about Rs 1 per message, passed on at cost.</p></div>`
+    <p class="fine">Send to all goes out from the shop line through n8n, no tapping. This demo uses a WhatsApp test line, so only phones that joined it receive the message. In the live version it sends from the shop number with the photo or PDF attached. WhatsApp charges about Rs 1 per message, passed on at cost.</p></div>`
   :`<div class="card pad offer"><div class="sec-h" style="margin-bottom:6px"><h3>Send an offer on WhatsApp</h3></div>
     <label class="lbl" for="offmsg">Message</label>
     <textarea id="offmsg" class="input" rows="6" oninput="ui.off.msg=this.value;document.getElementById('offgo').disabled=!this.value.trim()||!${aud.length}">${esc(ui.off.msg||'')}</textarea>
@@ -3971,9 +4033,9 @@ function render(){
   const r=route();
   let h;
   if(r.shop)h=S.auth?shopDash(r):shopPick();
-  else if(!S.roll)h=studentLogin();
+  else if(!S.roll||!S.email||!S.phone)h=studentLogin();
   else h=studentNav(r)+({home,menu:menuPage,cart:cartPage,order:orderPage,orders:ordersPage}[r.name]||home)(r.arg);
-  const key=location.hash+'|'+!!S.roll+'|'+(S.auth||'');
+  const key=location.hash+'|'+!!(S.roll&&S.email&&S.phone)+'|'+(S.auth||'');
   document.getElementById('app').innerHTML=`<div class="${key!==lastView?'view':''}">${h}</div>`;
   lastView=key;
   document.getElementById('sheet').innerHTML=sheetHtml();
