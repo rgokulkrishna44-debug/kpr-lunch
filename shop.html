@@ -2943,7 +2943,39 @@ function fresh(){
   SHOPS.forEach(s=>{shops[s.id]={sold:{},special:(s.items.find(i=>i.name===s.special)||s.items[0]).id,upi:s.upi,cap:150,open:true}});
   return {v:8,day:1,now:660,roll:'',orders:[],bills:[],custs:[],camps:[],strikes:{},shops,carts:{},auth:null,last:0};
 }
-function load(){try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.v===8)return d}catch(e){}return fresh()}
+/* ---------- safety net: bad saved data or a bad message must never blank the page ---------- */
+const isObj=x=>!!x&&typeof x==='object'&&!Array.isArray(x);
+const isNum=x=>typeof x==='number'&&isFinite(x);
+const isShopId=x=>SHOPS.some(s=>s.id===x);
+const okLine=i=>isObj(i)&&isNum(i.q)&&i.q>0&&isNum(i.p)&&typeof i.n==='string';
+const okOrder=o=>isObj(o)&&o.id!=null&&isShopId(o.shop)&&Array.isArray(o.items)&&o.items.length>0&&o.items.every(okLine)&&isNum(o.total)&&typeof o.status==='string'&&typeof o.token==='string'&&typeof o.roll==='string'&&isNum(o.day)&&isNum(o.at);
+const okBill=b=>isObj(b)&&b.id!=null&&isShopId(b.sid)&&Array.isArray(b.items)&&b.items.every(okLine)&&isNum(b.total)&&isNum(b.day)&&isNum(b.at)&&typeof b.no==='string'&&typeof b.mode==='string';
+const okCust=c=>isObj(c)&&isShopId(c.sid)&&typeof c.phone==='string'&&c.phone.length>0;
+const okCamp=c=>isObj(c)&&c.id!=null&&Array.isArray(c.sent);
+function heal(s){
+  if(!isObj(s))return fresh();
+  const f=fresh();
+  ['day','now','last'].forEach(k=>{if(!isNum(s[k]))s[k]=f[k]});
+  ['roll','email','name','phone'].forEach(k=>{if(typeof s[k]!=='string')s[k]=''});
+  if(!isShopId(s.auth))s.auth=null;
+  if(!isObj(s.strikes))s.strikes={};
+  if(!isObj(s.carts))s.carts={};
+  Object.keys(s.carts).forEach(k=>{if(!isObj(s.carts[k]))delete s.carts[k]});
+  if(!isObj(s.shops))s.shops={};
+  SHOPS.forEach(x=>{const d=f.shops[x.id],c=s.shops[x.id];
+    if(!isObj(c)){s.shops[x.id]=d;return}
+    if(!isObj(c.sold))c.sold={};
+    if(typeof c.upi!=='string')c.upi=d.upi;
+    if(!isNum(c.cap))c.cap=d.cap;
+    if(typeof c.open!=='boolean')c.open=d.open;
+    if(typeof c.special!=='string')c.special=d.special});
+  s.orders=(Array.isArray(s.orders)?s.orders:[]).filter(okOrder);
+  s.bills=(Array.isArray(s.bills)?s.bills:[]).filter(okBill);
+  s.custs=(Array.isArray(s.custs)?s.custs:[]).filter(okCust);
+  s.camps=(Array.isArray(s.camps)?s.camps:[]).filter(okCamp);
+  return s;
+}
+function load(){try{const d=JSON.parse(localStorage.getItem(K));if(d&&d.v===8)return heal(d)}catch(e){}return fresh()}
 let S = load();
 if(!S.bills)S.bills=[];if(!S.custs)S.custs=[];if(!S.camps)S.camps=[];
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}}
@@ -2970,13 +3002,18 @@ async function flush(){
   }
   sending=false;
 }
+const listOf=(l,ok)=>Array.isArray(l)?l.filter(ok):[];
 function apply(ev){
+  try{applyEv(ev)}catch(e){console.error('bad event ignored',e)}
+}
+function applyEv(ev){
+  if(!isObj(ev))return;
   const o=ev.id&&getO(ev.id);
   switch(ev.t){
-    case 'orders':ev.list.forEach(x=>{if(!S.orders.some(y=>y.id===x.id))S.orders.push(x)});break;
+    case 'orders':listOf(ev.list,okOrder).forEach(x=>{if(!S.orders.some(y=>y.id===x.id))S.orders.push(x)});break;
     case 'st':if(o&&isActive(o)){o.status=ev.st;o.hold=false}break;
     case 'hold':if(o&&isActive(o))o.hold=!!ev.v;break;
-    case 'give':if(o&&isActive(o)){
+    case 'give':if(o&&isActive(o)&&Array.isArray(ev.d)){
       o.items.forEach((it,i)=>{if((ev.d[i]||0)>dOf(it))it.d=Math.min(it.q,ev.d[i])});
       o.cashPaid=Math.max(o.cashPaid||0,ev.paid||0);o.hold=false;
       if(leftOf(o)===0){o.status='collected';o.doneAt=ev.at}
@@ -2984,16 +3021,16 @@ function apply(ev){
     case 'coming':if(o&&isActive(o)){o.coming=true;o.comingAt=ev.at}break;
     case 'pay':if(o&&o.ps==='check'){o.ps=ev.v;o.payAt=ev.at;if(ev.v==='ok')o.paid=true;else if(isActive(o))o.status='cancelled'}break;
     case 'cancel':if(o&&o.status==='placed'&&!isPart(o))o.status='cancelled';break;
-    case 'bill':if(ev.b&&!S.bills.some(b=>b.id===ev.b.id))S.bills.push(ev.b);break;
-    case 'bills':ev.list.forEach(x=>{if(!S.bills.some(b=>b.id===x.id))S.bills.push(x)});break;
+    case 'bill':if(okBill(ev.b)&&!S.bills.some(b=>b.id===ev.b.id))S.bills.push(ev.b);break;
+    case 'bills':listOf(ev.list,okBill).forEach(x=>{if(!S.bills.some(b=>b.id===x.id))S.bills.push(x)});break;
     case 'void':{const b=S.bills.find(b=>b.id===ev.id);if(b)b.void=true}break;
-    case 'cust':if(ev.cu&&ev.cu.phone)upsertCust(ev.cu);break;
-    case 'custs':ev.list.forEach(upsertCust);break;
-    case 'camp':if(ev.camp&&!S.camps.some(c=>c.id===ev.camp.id))S.camps.push(ev.camp);break;
+    case 'cust':if(okCust(ev.cu))upsertCust(ev.cu);break;
+    case 'custs':listOf(ev.list,okCust).forEach(upsertCust);break;
+    case 'camp':if(okCamp(ev.camp)&&!S.camps.some(c=>c.id===ev.camp.id))S.camps.push(ev.camp);break;
     case 'campsent':{const c=S.camps.find(c=>c.id===ev.id);if(c&&!c.sent.includes(ev.ph))c.sent.push(ev.ph)}break;
-    case 'sold':if(S.shops[ev.sid]){if(ev.v)S.shops[ev.sid].sold[ev.item]=true;else delete S.shops[ev.sid].sold[ev.item]}break;
-    case 'shop':if(S.shops[ev.sid])S.shops[ev.sid][ev.k]=ev.v;break;
-    case 'clock':S.day=ev.day;S.now=ev.now;break;
+    case 'sold':if(S.shops[ev.sid]&&typeof ev.item==='string'){if(ev.v)S.shops[ev.sid].sold[ev.item]=true;else delete S.shops[ev.sid].sold[ev.item]}break;
+    case 'shop':if(S.shops[ev.sid]&&['open','cap','special','upi'].includes(ev.k)&&typeof ev.v===typeof S.shops[ev.sid][ev.k])S.shops[ev.sid][ev.k]=ev.v;break;
+    case 'clock':if(isNum(ev.day)&&isNum(ev.now)){S.day=ev.day;S.now=ev.now}break;
     case 'reset':resetShared();break;
   }
 }
@@ -3093,7 +3130,7 @@ function sweep(){
 /* ---------- routing: plain #name hashes so the browser back button works ---------- */
 let depth=0;
 function route(){
-  const h=decodeURIComponent(location.hash.slice(1));
+  let h=location.hash.slice(1);try{h=decodeURIComponent(h)}catch(e){}
   if(MODE==='shop')return {shop:true,name:h.indexOf('shop-')===0?h.slice(5):'counter'};
   const m=h.match(/^(menu|cart|order)-(.+)$/);
   if(m)return {name:m[1],arg:m[2]};
@@ -3131,7 +3168,10 @@ function lgName(el){const g=lg();g.name=el.value;g.err='';const e=document.getEl
 function lgPhone(el){el.value=el.value.replace(/\D/g,'').slice(0,10);const g=lg();g.phone=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
 function lgCode(el){el.value=el.value.replace(/\D/g,'').slice(0,6);const g=lg();g.code=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent='';if(g.code.length===6)otpVerify()}
 function lgBack(){ui.lg={step:'email',email:lg().email,code:'',busy:false,err:'',cool:0,name:'',phone:'',pt:'',uid:''};render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
-function otpPost(path,data){return fetch(API+'/'+path,{method:'POST',body:new URLSearchParams(data)}).then(r=>r.json()).catch(()=>({ok:false,error:'No connection. Check your internet and try again.'}))}
+function otpPost(path,data){
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),25000);
+  return fetch(API+'/'+path,{method:'POST',body:new URLSearchParams(data),signal:ac.signal}).then(r=>r.json()).catch(e=>({ok:false,error:e&&e.name==='AbortError'?'This is taking too long. Try again in a moment.':'No connection. Check your internet and try again.'})).finally(()=>clearTimeout(t));
+}
 let lgTimer=0;
 function lgTick(){clearInterval(lgTimer);lgTimer=setInterval(()=>{const g=lg();if(g.cool>0)g.cool--;const b=document.getElementById('lgre');if(b){b.disabled=g.cool>0;b.textContent=g.cool>0?'Send again in '+g.cool+' s':'Send again'}if(g.cool<=0)clearInterval(lgTimer)},1000)}
 async function otpSend(){
@@ -4028,7 +4068,7 @@ function demoHtml(){
 }
 
 let toastTimer,lastView='';
-function render(){
+function renderInner(){
   sweep();
   const r=route();
   let h;
@@ -4044,6 +4084,18 @@ function render(){
   if(r.shop&&S.auth&&['customers','billing','analytics','counter'].includes(r.name||'counter'))pullCusts(S.auth);
   if(ui.toast){clearTimeout(toastTimer);toastTimer=setTimeout(()=>{ui.toast='';render()},6000)}
 }
+function crashScreen(){
+  const a=document.getElementById('app');if(!a)return;
+  a.innerHTML='<div style="padding:90px 24px;max-width:460px;margin:0 auto;text-align:center"><h1 style="font-size:26px;margin:0 0 10px">One moment, let us reset this screen</h1><p class="fine" style="margin:0 0 22px">Something on this device got out of step. Nothing is lost on the shop side. Reload first. If it still looks wrong, start fresh on this device.</p><button class="btn" onclick="location.reload()">Reload</button> <button class="btn" style="background:transparent;color:inherit;border:1px solid currentColor" onclick="hardReset()">Start fresh on this device</button></div>';
+}
+function hardReset(){try{localStorage.removeItem(K);localStorage.removeItem(K+'_out')}catch(e){}location.hash='';location.reload()}
+function render(){
+  try{renderInner();return}catch(e){console.error('render failed, healing',e)}
+  try{S=heal(S);save();renderInner();return}catch(e){console.error('render failed again',e)}
+  crashScreen();
+}
+window.addEventListener('error',e=>console.error('page error',e.message));
+window.addEventListener('unhandledrejection',e=>{console.error('promise error',e.reason);e.preventDefault()});
 const tipEl=document.createElement('div');tipEl.id='tip';document.body.appendChild(tipEl);
 function tipAt(e){const t=e.target.closest&&e.target.closest('[data-tip]');if(!t){tipEl.style.opacity=0;return}
   tipEl.textContent=t.dataset.tip;const r=tipEl.getBoundingClientRect(),b=t.getBoundingClientRect(),cx=e.clientX||b.left+b.width/2,cy=e.clientY||b.top;
