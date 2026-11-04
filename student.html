@@ -88,6 +88,10 @@ section{margin-top:44px}
 .btn.ok{background:var(--moss);color:var(--hi)}
 .btn.warn{background:var(--warnf);color:var(--hi)}
 .btn.ghost{background:var(--s2);color:var(--text)}
+/* Log in / Create account switch, same look as the Coz Coffee login */
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--s2);border-radius:99px;padding:4px;margin:0 0 20px;max-width:340px}
+.seg button{border:0;background:transparent;border-radius:99px;padding:10px 0;font:500 14px var(--font);color:var(--mute);cursor:pointer;transition:background .2s,color .2s}
+.seg button.on{background:#fff;color:var(--hi);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .btn.ghost:hover{background:var(--s3);color:var(--hi)}
 .btn:disabled{opacity:.3;cursor:not-allowed;transform:none}
 .input{width:100%;font:inherit;font-size:17px;color:var(--hi);padding:14px 18px;border:1px solid var(--line2);border-radius:16px;background:#fff;outline:none;transition:border .2s,box-shadow .2s}
@@ -2907,7 +2911,7 @@ var qrcode = function() {
 </script>
 <script>
 const MODE = 'student'; // 'student' or 'shop', filled in by build.py
-const PHP = ''; // base URL of the PHP API (build.py --php URL). Empty = the old ntfy + n8n build.
+const PHP = 'https://lunch-api.luvias.in/api'; // base URL of the PHP API (build.py --php URL). Empty = the old ntfy + n8n build.
 const USE_PHP = !!PHP;
 const K = 'kprlunch_v8_' + MODE + (USE_PHP ? '_php' : '');
 const RELAY = 'https://ntfy.sh/', TOPIC = 'kprlunch-0c492eeeb6f89377';
@@ -3058,7 +3062,7 @@ window.addEventListener('online',()=>{flush();connect()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){flush();if(!net.on)connect()}});
 
 /* ---------- PHP backend (only when USE_PHP): login, roles, orders, student records ---------- */
-const TOK_K=K+'_tok';
+const TOK_K=USE_PHP?'kprlunch_v8_php_tok':K+'_tok';   // one sign in for both pages on this device
 const getTok=()=>{try{return localStorage.getItem(TOK_K)||''}catch(e){return ''}};
 const setTok=t=>{try{t?localStorage.setItem(TOK_K,t):localStorage.removeItem(TOK_K)}catch(e){}};
 async function php(method,path,body){
@@ -3067,10 +3071,24 @@ async function php(method,path,body){
     const h={};if(body!==undefined)h['Content-Type']='application/json';if(tk)h.Authorization='Bearer '+tk;
     const r=await fetch(PHP.replace(/\/$/,'')+'/'+path,{method,headers:h,body:body!==undefined?JSON.stringify(body):undefined,signal:ac.signal});
     let j={};try{j=await r.json()}catch(e){}
-    if(r.status===401&&tk&&!/^(otp|profile)/.test(path))phpExpired();
+    if(r.status===401&&tk&&!/^(otp|totp|profile)/.test(path))phpExpired();
     return {s:r.status,j};
   }catch(e){return {s:0,j:{error:e&&e.name==='AbortError'?'This is taking too long. Try again in a moment.':'No connection. Check your internet and try again.'}}}
   finally{clearTimeout(t)}
+}
+/* The sign in lives in the device token. If this page has no local identity yet (first time on this page, cleared storage, or signed in on the other page), ask the server who it is. */
+async function phpRestore(){
+  if(!USE_PHP||!getTok())return;
+  if(S.role==='admin'||(S.roll&&S.role!=='admin'))return;
+  const r=await php('GET','me');
+  if(r.s!==200||!r.j.user)return;
+  const u=r.j.user;
+  if(u.role==='admin'){
+    S.email=u.email;S.role='admin';S.scope=u.shop||'';S.auth=S.scope&&S.scope!=='*'?S.scope:null;save();
+    if(MODE==='student'){location.replace('shop.html');return}
+    render();phpSync();return;
+  }
+  S.email=u.email;S.roll=u.uid;S.name=u.name;S.phone=u.phone;S.role='student';save();render();phpSync();
 }
 function phpExpired(){setTok('');S.roll='';S.email='';S.name='';S.phone='';S.role='';S.scope='';S.auth=null;S.orders=[];syncSig='';ui.lg=null;save();render()}
 const IST=19800000;
@@ -3129,7 +3147,14 @@ async function phpOtp(path,data){
   if(path==='otp-verify'){
     const r=await php('POST','otp-verify',{email:data.email,code:data.code});
     if(r.s!==200||!r.j.ok)return {ok:false,error:r.j.error||'Could not check the code. Try again.'};
+    if(r.j.step)return {ok:true,step:r.j.step,ticket:r.j.ticket,secret:r.j.secret||'',uri:r.j.uri||''};
     if(r.j.isNew)return {ok:true,isNew:true,pt:r.j.pt,uid:'new'};
+    setTok(r.j.token);const u=r.j.user;S.role=u.role;S.scope=u.shop||'';
+    return {ok:true,isNew:false,uid:u.uid,name:u.name,phone:u.phone,role:u.role,shop:u.shop};
+  }
+  if(path==='totp'){
+    const r=await php('POST','totp',{ticket:data.ticket,code:data.code});
+    if(r.s!==200||!r.j.ok)return {ok:false,error:r.j.error||'Could not check the code. Try again.'};
     setTok(r.j.token);const u=r.j.user;S.role=u.role;S.scope=u.shop||'';
     return {ok:true,isNew:false,uid:u.uid,name:u.name,phone:u.phone,role:u.role,shop:u.shop};
   }
@@ -3148,7 +3173,7 @@ function phpLanded(r,mail){
     if(MODE==='shop'){go('shop');render();phpSync()}else location.href='shop.html';
     return true;
   }
-  if(MODE==='shop'){S.role='student';save();location.href='index.html';return true}
+  if(MODE==='shop'){location.href='index.html';return true}
   return false;
 }
 /* students tab on the counter: logins, orders and history per student */
@@ -3271,32 +3296,41 @@ window.addEventListener('hashchange',()=>{depth++;ui.sheet=null;ui.q='';render()
 
 /* ---------- student actions ---------- */
 const who = () => (S.name||'').trim().split(' ')[0]||(S.email||'').split('@')[0];
-const lg = () => ui.lg||(ui.lg={step:'email',email:'',code:'',busy:false,err:'',cool:0,name:'',phone:'',pt:'',uid:''});
+const lg = () => ui.lg||(ui.lg={step:'email',mode:'login',email:'',code:'',busy:false,err:'',cool:0,name:'',phone:'',pt:'',uid:''});
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 function loginForm(){
   const g=lg();
-  if(g.step==='profile')return `<p class="fine" style="margin:0 0 10px">Code accepted. Since this is your first time, tell us who you are. We only ask once.</p>
+  if(g.step==='profile')return `<p class="fine" style="margin:0 0 10px">${g.mode==='login'?'Code accepted. There is no account for this Gmail yet, so we will create one now. Tell us who you are. We only ask once.':'Code accepted. Tell us who you are to finish creating your account. We only ask once.'}</p>
   <label class="lbl" for="lgname">Your name</label>
   <input id="lgname" class="input" maxlength="60" autocomplete="name" enterkeyhint="next" placeholder="Your full name" value="${esc(g.name)}" oninput="lgName(this)" onkeydown="if(event.key==='Enter'){const i=document.getElementById('lgphone');if(i)i.focus()}">
   <label class="lbl" for="lgphone" style="margin-top:10px">Phone number</label>
   <div class="row2"><input id="lgphone" class="input mono" inputmode="numeric" maxlength="10" autocomplete="tel-national" enterkeyhint="go" placeholder="10 digit mobile number" value="${esc(g.phone)}" oninput="lgPhone(this)" onkeydown="if(event.key==='Enter')profSave()"><button class="btn" id="lgbtn" onclick="profSave()" ${g.busy?'disabled':''}>${g.busy?'Saving':'Continue'}</button></div>
   <div id="lgErr" class="err">${esc(g.err)}</div>
   <p class="fine" style="margin-top:2px">Gmail: <b>${esc(g.email)}</b>. <button onclick="lgBack()">Use a different Gmail</button></p>`;
+  if(g.step==='totp_setup'||g.step==='totp')return `<p class="fine" style="margin:0 0 10px">${g.step==='totp_setup'?'Email code accepted. The counter needs one more step. Open an authenticator app (Google Authenticator, Microsoft Authenticator or 1Password), add an account by scanning this code, then type the 6 digit code it shows. You only do this once.':'Email code accepted. Open your authenticator app and type the 6 digit code for KPR Lunch. This device stays signed in, so you will not be asked again here.'}</p>
+  ${g.step==='totp_setup'?`<div style="width:176px;margin:0 0 8px;background:#fff;padding:8px;border-radius:12px">${upiQr(g.uri)}</div><p class="fine" style="margin:0 0 10px">Cannot scan? Type this key in the app: <b class="mono" style="word-break:break-all">${esc(g.secret)}</b></p>`:''}
+  <label class="lbl" for="lgtotp">Authenticator code</label>
+  <div class="row2"><input id="lgtotp" class="input mono" inputmode="numeric" maxlength="6" autocomplete="one-time-code" enterkeyhint="go" placeholder="123456" value="${esc(g.tcode||'')}" oninput="lgTotp(this)" onkeydown="if(event.key==='Enter')totpVerify()"><button class="btn" id="lgbtn" onclick="totpVerify()" ${g.busy?'disabled':''}>${g.busy?'Checking':(g.step==='totp_setup'?'Confirm':'Verify')}</button></div>
+  <div id="lgErr" class="err">${esc(g.err)}</div>
+  <p class="fine" style="margin-top:2px">Gmail: <b>${esc(g.email)}</b>. <button onclick="lgBack()">Start again</button></p>`;
   if(g.step==='code')return `<label class="lbl" for="lgcode">6 digit code</label>
   <div class="row2"><input id="lgcode" class="input mono" inputmode="numeric" maxlength="6" autocomplete="one-time-code" enterkeyhint="go" placeholder="123456" value="${esc(g.code)}" oninput="lgCode(this)" onkeydown="if(event.key==='Enter')otpVerify()"><button class="btn" id="lgbtn" onclick="otpVerify()" ${g.busy?'disabled':''}>${g.busy?'Checking':'Verify'}</button></div>
   <div id="lgErr" class="err">${esc(g.err)}</div>
   <p class="fine" style="margin-top:2px">We sent a code to <b>${esc(g.email)}</b>. It works for 10 minutes. Check spam if you do not see it.
   <button id="lgre" onclick="otpSend()" ${g.cool>0?'disabled':''}>${g.cool>0?'Send again in '+g.cool+' s':'Send again'}</button> <button onclick="lgBack()">Use a different Gmail</button></p>`;
-  return `<label class="lbl" for="lgmail">Gmail address</label>
+  return `<div class="seg" role="tablist"><button type="button" class="${g.mode==='login'?'on':''}" onclick="lgMode('login')">Log in</button><button type="button" class="${g.mode==='create'?'on':''}" onclick="lgMode('create')">Create account</button></div>
+  <label class="lbl" for="lgmail">Gmail address</label>
   <div class="row2"><input id="lgmail" class="input" type="email" inputmode="email" maxlength="120" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" placeholder="you@gmail.com" value="${esc(g.email)}" oninput="lgMail(this)" onkeydown="if(event.key==='Enter')otpSend()"><button class="btn" id="lgbtn" onclick="otpSend()" ${g.busy?'disabled':''}>${g.busy?'Sending':'Send code'}</button></div>
   <div id="lgErr" class="err">${esc(g.err)}</div>
-  <p class="fine" style="margin-top:2px">We email you a 6 digit code. No password to remember. Your orders and history stay with your Gmail.</p>`;
+  <p class="fine" style="margin-top:2px">${g.mode==='create'?'New here? We email you a 6 digit code, then ask your name and phone once. No password to remember.':'We email you a 6 digit code. No password to remember. This device stays signed in, so you only do this once.'} Your orders and history stay with your Gmail.</p>`;
 }
 function lgMail(el){const g=lg();g.email=el.value.trim();g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
 function lgName(el){const g=lg();g.name=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
 function lgPhone(el){el.value=el.value.replace(/\D/g,'').slice(0,10);const g=lg();g.phone=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
 function lgCode(el){el.value=el.value.replace(/\D/g,'').slice(0,6);const g=lg();g.code=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent='';if(g.code.length===6)otpVerify()}
-function lgBack(){ui.lg={step:'email',email:lg().email,code:'',busy:false,err:'',cool:0,name:'',phone:'',pt:'',uid:''};render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
+function lgTotp(el){el.value=el.value.replace(/\D/g,'').slice(0,6);const g=lg();g.tcode=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent='';if(g.tcode.length===6)totpVerify()}
+function lgMode(m){const g=lg();g.mode=m;g.err='';render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
+function lgBack(){ui.lg={step:'email',mode:lg().mode||'login',email:lg().email,code:'',busy:false,err:'',cool:0,name:'',phone:'',pt:'',uid:''};render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
 function otpPost(path,data){
   if(USE_PHP)return phpOtp(path,data);
   const ac=new AbortController(),t=setTimeout(()=>ac.abort(),25000);
@@ -3328,11 +3362,21 @@ async function otpVerify(){
   g.busy=true;g.err='';render();
   const r=await otpPost('otp-verify',{email:g.email,code:g.code});
   g.busy=false;
+  if(USE_PHP&&r&&r.ok&&r.step){g.step=r.step;g.ticket=r.ticket;g.secret=r.secret||'';g.uri=r.uri||'';g.tcode='';g.err='';clearInterval(lgTimer);render();setTimeout(()=>{const i=document.getElementById('lgtotp');if(i)i.focus()},50);return}
   if(USE_PHP&&r&&r.ok&&!r.isNew&&phpLanded(r,g.email))return;
   if(!USE_PHP&&r&&r.ok&&r.uid&&await isAdminMail(g.email)){ui.lg=null;clearInterval(lgTimer);location.href='shop.html';return}
   if(r&&r.ok&&r.uid&&r.isNew&&r.pt){g.step='profile';g.pt=r.pt;g.uid=r.uid;g.err='';clearInterval(lgTimer);render();setTimeout(()=>{const i=document.getElementById('lgname');if(i)i.focus()},50)}
   else if(r&&r.ok&&r.uid&&r.name&&r.phone){S.email=g.email;S.roll=r.uid;S.name=r.name;S.phone=r.phone;ui.lg=null;clearInterval(lgTimer);save();go('')}
   else{g.err=(r&&r.error)||'Could not check the code. Try again.';g.code='';render();setTimeout(()=>{const i=document.getElementById('lgcode');if(i)i.focus()},50)}
+}
+async function totpVerify(){
+  const g=lg();if(g.busy)return;
+  if(!/^\d{6}$/.test(g.tcode||'')){g.err='Type the 6 digit code from your authenticator app';render();return}
+  g.busy=true;g.err='';render();
+  const r=await otpPost('totp',{ticket:g.ticket,code:g.tcode});
+  g.busy=false;
+  if(r&&r.ok&&phpLanded(r,g.email))return;
+  g.err=(r&&r.error)||'Could not check the code. Try again.';g.tcode='';render();setTimeout(()=>{const i=document.getElementById('lgtotp');if(i)i.focus()},50);
 }
 async function profSave(){
   const g=lg();if(g.busy)return;
@@ -4252,6 +4296,7 @@ addEventListener('scroll',()=>tipEl.style.opacity=0,{passive:true});
 if(USE_PHP){
   phpClock();
   if(MODE==='student'&&getTok()&&S.role==='admin'&&!S.roll)location.replace('shop.html');
+  else phpRestore();
   setInterval(()=>{if(document.hidden)return;if(phpClock())softRender();phpSync()},MODE==='shop'?3000:5000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){phpClock();phpSync()}});
 }
