@@ -2907,7 +2907,9 @@ var qrcode = function() {
 </script>
 <script>
 const MODE = 'shop'; // 'student' or 'shop', filled in by build.py
-const K = 'kprlunch_v8_' + MODE;
+const PHP = ''; // base URL of the PHP API (build.py --php URL). Empty = the old ntfy + n8n build.
+const USE_PHP = !!PHP;
+const K = 'kprlunch_v8_' + MODE + (USE_PHP ? '_php' : '');
 const RELAY = 'https://ntfy.sh/', TOPIC = 'kprlunch-0c492eeeb6f89377';
 const ROLL_RE = /^\d{2}[A-Z]{2}\d{3}$/; // 24CS068: joining year, department, number
 const ROLL_YEARS = [20, 26];
@@ -2990,7 +2992,8 @@ const net={on:false};
 let outbox=[];try{outbox=JSON.parse(localStorage.getItem(K+'_out'))||[]}catch(e){}
 let sending=false,pendingRender=false,dirty=false,rt,es,retry=0;
 function saveOut(){try{localStorage.setItem(K+'_out',JSON.stringify(outbox))}catch(e){}}
-function emit(ev){ev.c=CID;outbox.push(ev);saveOut();flush()}
+const PHP_OWNED=['orders','st','hold','give','coming','pay','cancel','clock','reset']; // with the PHP backend these come from the server, not ntfy
+function emit(ev){if(USE_PHP&&PHP_OWNED.includes(ev.t))return;ev.c=CID;outbox.push(ev);saveOut();flush()}
 async function flush(){
   if(sending)return;sending=true;
   while(outbox.length){
@@ -3007,7 +3010,7 @@ function apply(ev){
   try{applyEv(ev)}catch(e){console.error('bad event ignored',e)}
 }
 function applyEv(ev){
-  if(!isObj(ev))return;
+  if(!isObj(ev)||(USE_PHP&&PHP_OWNED.includes(ev.t)))return;
   const o=ev.id&&getO(ev.id);
   switch(ev.t){
     case 'orders':listOf(ev.list,okOrder).forEach(x=>{if(!S.orders.some(y=>y.id===x.id))S.orders.push(x)});break;
@@ -3054,6 +3057,131 @@ document.addEventListener('focusout',()=>{if(pendingRender){pendingRender=false;
 window.addEventListener('online',()=>{flush();connect()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){flush();if(!net.on)connect()}});
 
+/* ---------- PHP backend (only when USE_PHP): login, roles, orders, student records ---------- */
+const TOK_K=K+'_tok';
+const getTok=()=>{try{return localStorage.getItem(TOK_K)||''}catch(e){return ''}};
+const setTok=t=>{try{t?localStorage.setItem(TOK_K,t):localStorage.removeItem(TOK_K)}catch(e){}};
+async function php(method,path,body){
+  const ac=new AbortController(),t=setTimeout(()=>ac.abort(),20000),tk=getTok();
+  try{
+    const h={};if(body!==undefined)h['Content-Type']='application/json';if(tk)h.Authorization='Bearer '+tk;
+    const r=await fetch(PHP.replace(/\/$/,'')+'/'+path,{method,headers:h,body:body!==undefined?JSON.stringify(body):undefined,signal:ac.signal});
+    let j={};try{j=await r.json()}catch(e){}
+    if(r.status===401&&tk&&!/^(otp|profile)/.test(path))phpExpired();
+    return {s:r.status,j};
+  }catch(e){return {s:0,j:{error:e&&e.name==='AbortError'?'This is taking too long. Try again in a moment.':'No connection. Check your internet and try again.'}}}
+  finally{clearTimeout(t)}
+}
+function phpExpired(){setTok('');S.roll='';S.email='';S.name='';S.phone='';S.role='';S.scope='';S.auth=null;S.orders=[];syncSig='';ui.lg=null;save();render()}
+const IST=19800000;
+const istMin=ms=>{const d=new Date(ms+IST);return d.getUTCHours()*60+d.getUTCMinutes()};
+const dayNum=ms=>Math.floor((ms+IST)/864e5);
+const dayStrNum=s=>{const [y,m,d]=String(s).split('-').map(Number);return Math.round(Date.UTC(y,m-1,d)/864e5)};
+function phpClock(){const n=Date.now(),m=istMin(n),d=dayNum(n);if(m!==S.now||d!==S.day){S.now=m;S.day=d;return true}return false}
+function mapOrder(x,shopSide){
+  const o={id:x.id,day:dayStrNum(x.day),roll:shopSide?((x.student&&x.student.name)||'Student'):S.roll,shop:x.shop,
+    items:x.items.map(i=>{const r={id:i.id,n:i.n,p:i.p,q:i.q};if(i.d)r.d=i.d;return r}),
+    total:x.total,pay:x.pay,paid:x.pay==='upi'&&x.ps==='ok',status:x.status,coming:!!x.coming,token:x.token||'',at:istMin(x.created),hold:!!x.hold};
+  if(x.ps==='check'||x.ps==='ok'||x.ps==='no')o.ps=x.ps;
+  if(x.pay==='upi'&&x.upiAmt)o.upiAmt=x.upiAmt;
+  if(x.cashPaid)o.cashPaid=x.cashPaid;
+  if(x.coming)o.comingAt=istMin(x.updated);
+  if(x.status==='collected')o.doneAt=istMin(x.updated);
+  if(shopSide&&x.student)o.phone=x.student.phone;
+  return o;
+}
+let syncSig='',syncBusy=false;
+async function phpSync(){
+  if(syncBusy||!getTok())return;
+  const shopSide=MODE==='shop';
+  if(shopSide?(!S.auth||S.role!=='admin'):!S.roll)return;
+  syncBusy=true;
+  try{
+    const r=await php('GET',shopSide?'shop/'+S.auth+'/orders':'orders/mine');
+    if(r.s===200&&Array.isArray(r.j.orders)){
+      const list=r.j.orders.map(x=>mapOrder(x,shopSide)).filter(okOrder),sig=JSON.stringify(list);
+      if(sig!==syncSig){syncSig=sig;S.orders=(shopSide?S.orders.filter(o=>o.shop!==S.auth):[]).concat(list);save();softRender()}
+    }
+  }finally{syncBusy=false}
+}
+function upsertLocal(o){const i=S.orders.findIndex(x=>x.id===o.id);if(i>=0)S.orders[i]=o;else S.orders.push(o);save()}
+async function phpCreateOrder(sid,paid){
+  if(ui.placing)return;ui.placing=true;
+  const r=await php('POST','orders',{shop:sid,pay:paid?'upi':'cash',items:cartLines(sid).map(l=>({id:l.id,q:l.qty})),paise:paid&&ui.sheet?ui.sheet.paise:0});
+  ui.placing=false;
+  if(r.s===201&&r.j.order){const o=mapOrder(r.j.order,false);upsertLocal(o);S.carts[sid]={};ui.sheet=null;save();syncSig='';go('order-'+o.id);return}
+  ui.sheet=null;ui.toast=(r.j&&r.j.error)||'Could not place the order. Try again.';render();
+}
+async function phpOrderAct(id,act){
+  const r=await php('POST','orders/'+id+'/'+act,{});
+  if(r.s===200&&r.j.order)upsertLocal(mapOrder(r.j.order,false));else ui.toast=(r.j&&r.j.error)||'That did not work. Try again.';
+  syncSig='';render();phpSync();
+}
+async function phpShopAct(id,act,body,okMsg){
+  const r=await php('POST','shop/'+S.auth+'/orders/'+id+'/'+act,body);
+  const ok=r.s===200&&r.j.order;
+  if(ok){upsertLocal(mapOrder(r.j.order,true));if(okMsg)ui.toast=okMsg}else ui.toast=(r.j&&r.j.error)||'That did not work. Try again.';
+  syncSig='';render();phpSync();return !!ok;
+}
+/* login on the PHP backend, answered in the same shape the old n8n routes used so the login screens stay as they are */
+async function phpOtp(path,data){
+  if(path==='otp-send'){const r=await php('POST','otp-send',{email:data.email});return r.s===200?{ok:true}:{ok:false,error:r.j.error||'Could not send the code. Try again.'}}
+  if(path==='otp-verify'){
+    const r=await php('POST','otp-verify',{email:data.email,code:data.code});
+    if(r.s!==200||!r.j.ok)return {ok:false,error:r.j.error||'Could not check the code. Try again.'};
+    if(r.j.isNew)return {ok:true,isNew:true,pt:r.j.pt,uid:'new'};
+    setTok(r.j.token);const u=r.j.user;S.role=u.role;S.scope=u.shop||'';
+    return {ok:true,isNew:false,uid:u.uid,name:u.name,phone:u.phone,role:u.role,shop:u.shop};
+  }
+  if(path==='profile'){
+    const r=await php('POST','profile',{email:data.email,pt:data.pt,name:data.name,phone:data.phone});
+    if(r.s!==201||!r.j.ok)return {ok:false,error:r.j.error||'Could not save. Try again.'};
+    setTok(r.j.token);const u=r.j.user;S.role=u.role;S.scope='';
+    return {ok:true,uid:u.uid,name:u.name,phone:u.phone,role:u.role};
+  }
+  return {ok:false,error:'Unknown step'};
+}
+/* what happens after a PHP sign in: admins go to the counter, students to the menu, whichever page they used */
+function phpLanded(r,mail){
+  if(r.role==='admin'){
+    S.email=mail;S.role='admin';S.scope=r.shop||'';S.auth=S.scope&&S.scope!=='*'?S.scope:null;ui.lg=null;clearInterval(lgTimer);save();
+    if(MODE==='shop'){go('shop');render();phpSync()}else location.href='shop.html';
+    return true;
+  }
+  if(MODE==='shop'){S.role='student';save();location.href='index.html';return true}
+  return false;
+}
+/* students tab on the counter: logins, orders and history per student */
+function stu(){return ui.stu||(ui.stu={list:null,q:'',sel:null,det:null,err:'',busy:false})}
+async function stuLoad(){const g=stu();g.busy=true;g.err='';render();const r=await php('GET','admin/students'+(g.q.trim()?'?q='+encodeURIComponent(g.q.trim()):''));g.busy=false;if(r.s===200)g.list=r.j.students;else{g.list=g.list||[];g.err=(r.j&&r.j.error)||'Could not load students'}render()}
+async function stuOpen(uid){const g=stu();g.sel=uid;g.det=null;render();const r=await php('GET','admin/students/'+uid);if(r.s===200)g.det=r.j;else g.err=(r.j&&r.j.error)||'Could not load this student';render()}
+const whenIST=ms=>ms?new Date(ms).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'never';
+function studentsView(){
+  const g=stu();
+  if(g.list===null){if(!g.busy)setTimeout(stuLoad,0);return '<p class="mute">Loading students...</p>'}
+  if(g.sel){
+    const d=g.det,back=`<button class="backlink" onclick="stu().sel=null;render()">${ICON.back} All students</button>`;
+    if(!d)return back+`<p class="mute">${g.err?esc(g.err):'Loading...'}</p>`;
+    const s=d.student,sn=id=>(shopOf(id)||{name:id}).name;
+    return back+`<div class="card pad"><h3 style="margin:0 0 4px">${esc(s.name)}</h3><div class="mute small">${esc(s.email)}, ${esc(s.phone)}</div>
+    <div class="kpis" style="margin-top:14px"><div class="kpi"><span>Logins</span><b>${s.logins}</b></div><div class="kpi"><span>Orders</span><b>${d.orders.length}</b></div>
+    <div class="kpi"><span>Collected</span><b>${d.orders.filter(o=>o.status==='collected').length}</b></div><div class="kpi"><span>Spent</span><b>${rs(d.orders.filter(o=>o.status==='collected').reduce((a,o)=>a+o.total,0))}</b></div></div>
+    <p class="fine" style="margin-top:12px">Joined ${whenIST(s.joined)}. Recent logins: ${d.loginTimes.slice(0,8).map(whenIST).join(', ')||'none'}.</p></div>
+    <div class="card tblwrap" style="margin-top:14px"><table class="tbl"><thead><tr><th>Day</th><th>Shop</th><th>Items</th><th>Total</th><th>Pay</th><th>Status</th></tr></thead><tbody>
+    ${d.orders.map(o=>`<tr><td>${esc(o.day)}</td><td>${esc(sn(o.shop))}</td><td>${o.items.map(i=>i.q+' x '+esc(i.n)).join(', ')}</td><td class="mono">${rs(o.total)}</td><td>${o.pay==='upi'?'GPay':'Cash'}</td><td>${esc(o.status)}</td></tr>`).join('')||'<tr><td colspan="6" class="mute">No orders yet.</td></tr>'}</tbody></table></div>`;
+  }
+  return `<div class="row2" style="margin-bottom:14px"><input class="input" placeholder="Search name, Gmail or phone" value="${esc(g.q)}" oninput="stu().q=this.value" onkeydown="if(event.key==='Enter')stuLoad()"><button class="btn" onclick="stuLoad()">Search</button></div>
+  ${g.err?`<div class="note warn" style="margin-bottom:12px">${esc(g.err)}</div>`:''}
+  <div class="card tblwrap"><table class="tbl"><thead><tr><th>Student</th><th>Phone</th><th>Logins</th><th>Orders</th><th>Collected</th><th>Spent</th><th>Last login</th></tr></thead><tbody>
+  ${g.list.map(x=>`<tr style="cursor:pointer" onclick="stuOpen('${esc(x.uid)}')"><td><b>${esc(x.name)}</b><div class="mute small">${esc(x.email)}</div></td><td class="mono">${esc(x.phone)}</td><td class="mono">${x.logins}</td><td class="mono">${x.orders}</td><td class="mono">${x.collected}</td><td class="mono">${rs(x.spent)}</td><td class="small">${whenIST(x.lastLogin)}</td></tr>`).join('')||'<tr><td colspan="7" class="mute">No students yet.</td></tr>'}</tbody></table></div>
+  <p class="fine" style="margin-top:12px">${g.list.length} students. Click a row for every order and login.</p>`;
+}
+function shopLogin(){
+  return `<header class="nav"><div class="nav-in"><span class="logo"><span class="mark">K</span>KPR Lunch Counter</span><span class="sp"></span></div></header>
+  <main class="page mid"><section class="hero"><p class="eyebrow">For shops</p><h1 class="display" style="font-size:clamp(36px,5vw,52px)">Counter sign in</h1>
+  <p class="lead sm">Sign in with the Gmail your shop was set up with. We email you a 6 digit code.</p></section><div class="signin" style="max-width:420px;margin:0 auto">${loginForm()}</div></main>`;
+}
+
 /* ---------- helpers ---------- */
 const esc = t => String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = m => {let h=Math.floor(m/60),mm=m%60;const ap=h>=12?'PM':'AM';h=h%12||12;return h+':'+String(mm).padStart(2,'0')+' '+ap};
@@ -3070,7 +3198,7 @@ const todays = sid => S.orders.filter(o=>o.shop===sid&&o.day===S.day);
 const liveOf = sid => S.orders.filter(o=>o.shop===sid&&(o.day===S.day||isPart(o)));
 const usedToday = sid => todays(sid).filter(o=>o.status!=='cancelled').length;
 const getO = id => S.orders.find(o=>o.id===+id);
-const strikes = () => S.strikes[S.roll]||0;
+const strikes = () => USE_PHP?S.orders.filter(o=>o.roll===S.roll&&o.pay==='cash'&&o.status==='expired').length:(S.strikes[S.roll]||0);
 const cartOf = sid => S.carts[sid]||(S.carts[sid]={});
 function cartLines(sid){const s=shopOf(sid),c=cartOf(sid),sold=S.shops[sid].sold;return Object.keys(c).map(id=>{const it=itemOf(s,id);return it&&!sold[id]?{...it,qty:c[id]}:null}).filter(Boolean)}
 const cartTotal = sid => cartLines(sid).reduce((a,l)=>a+l.price*l.qty,0);
@@ -3117,6 +3245,7 @@ const ICON = {
 
 // Unclaimed orders expire when lunch ends; an unclaimed cash order is a strike.
 function sweep(){
+  if(USE_PHP)return; // the server expires orders
   let ch=false;
   S.orders.forEach(o=>{
     if(isActive(o)&&!isPart(o)&&(o.day<S.day||S.now>LUNCH_END)){
@@ -3169,6 +3298,7 @@ function lgPhone(el){el.value=el.value.replace(/\D/g,'').slice(0,10);const g=lg(
 function lgCode(el){el.value=el.value.replace(/\D/g,'').slice(0,6);const g=lg();g.code=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent='';if(g.code.length===6)otpVerify()}
 function lgBack(){ui.lg={step:'email',email:lg().email,code:'',busy:false,err:'',cool:0,name:'',phone:'',pt:'',uid:''};render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
 function otpPost(path,data){
+  if(USE_PHP)return phpOtp(path,data);
   const ac=new AbortController(),t=setTimeout(()=>ac.abort(),25000);
   return fetch(API+'/'+path,{method:'POST',body:new URLSearchParams(data),signal:ac.signal}).then(r=>r.json()).catch(e=>({ok:false,error:e&&e.name==='AbortError'?'This is taking too long. Try again in a moment.':'No connection. Check your internet and try again.'})).finally(()=>clearTimeout(t));
 }
@@ -3184,12 +3314,22 @@ async function otpSend(){
   if(r&&r.ok){g.step='code';g.code='';g.err='';g.cool=60;render();lgTick();setTimeout(()=>{const i=document.getElementById('lgcode');if(i)i.focus()},50)}
   else{g.err=(r&&r.error)||'Could not send the code. Try again.';render()}
 }
+/* Admin routing: a verified Gmail whose SHA-256 is listed here goes to the shop counter, everyone else stays on the student menu.
+   Hashes, not addresses, so the list is not readable on the public page. Add a shop owner: printf 'name@gmail.com' | shasum -a 256
+   This only picks the page. The counter itself is still protected by the shop PIN. */
+const ADMIN_HASH=['17be51821389f5ab29c1cea33e8ef9bdf1b7e0c25ef1826a239450d08da7805c'];
+async function isAdminMail(m){
+  try{const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(m).trim().toLowerCase()));
+    return ADMIN_HASH.indexOf(Array.from(new Uint8Array(d)).map(b=>b.toString(16).padStart(2,'0')).join(''))>=0}catch(e){return false}
+}
 async function otpVerify(){
   const g=lg();if(g.busy)return;
   if(!/^\d{6}$/.test(g.code||'')){g.err='Type the 6 digit code from your email';render();return}
   g.busy=true;g.err='';render();
   const r=await otpPost('otp-verify',{email:g.email,code:g.code});
   g.busy=false;
+  if(USE_PHP&&r&&r.ok&&!r.isNew&&phpLanded(r,g.email))return;
+  if(!USE_PHP&&r&&r.ok&&r.uid&&await isAdminMail(g.email)){ui.lg=null;clearInterval(lgTimer);location.href='shop.html';return}
   if(r&&r.ok&&r.uid&&r.isNew&&r.pt){g.step='profile';g.pt=r.pt;g.uid=r.uid;g.err='';clearInterval(lgTimer);render();setTimeout(()=>{const i=document.getElementById('lgname');if(i)i.focus()},50)}
   else if(r&&r.ok&&r.uid&&r.name&&r.phone){S.email=g.email;S.roll=r.uid;S.name=r.name;S.phone=r.phone;ui.lg=null;clearInterval(lgTimer);save();go('')}
   else{g.err=(r&&r.error)||'Could not check the code. Try again.';g.code='';render();setTimeout(()=>{const i=document.getElementById('lgcode');if(i)i.focus()},50)}
@@ -3202,12 +3342,12 @@ async function profSave(){
   g.busy=true;g.err='';render();
   const r=await otpPost('profile',{email:g.email,pt:g.pt,name:nm,phone:g.phone});
   g.busy=false;
-  if(r&&r.ok&&r.uid){S.email=g.email;S.roll=r.uid;S.name=r.name||nm;S.phone=r.phone||g.phone;ui.lg=null;clearInterval(lgTimer);save();go('')}
+  if(r&&r.ok&&r.uid){S.email=g.email;S.roll=r.uid;S.role='student';S.name=r.name||nm;S.phone=r.phone||g.phone;ui.lg=null;clearInterval(lgTimer);save();go('')}
   else{g.err=(r&&r.error)||'Could not save. Try again.';render()}
 }
 /* test and demo helper: sign in without email */
 function setRoll(v){S.roll=v;S.email=v.toLowerCase()+'@demo.test';S.name=S.name||v;S.phone=S.phone||'9000000000';save();go('')}
-function logout(){S.roll='';S.email='';S.name='';S.phone='';ui.lg=null;ui.sheet=null;save();go('')}
+function logout(){if(USE_PHP){php('POST','logout',{});setTok('');S.role='';S.scope='';S.auth=null;S.orders=[];syncSig=''}S.roll='';S.email='';S.name='';S.phone='';ui.lg=null;ui.sheet=null;save();go('')}
 function qty(sid,id,d){const c=cartOf(sid);c[id]=Math.max(0,(c[id]||0)+d);if(!c[id])delete c[id];save();render()}
 function pickPay(sid,m){ui.pay[sid]=m;render()}
 function payMethod(sid){const m=ui.pay[sid]||'upi';return m==='cash'&&strikes()>=STRIKE_LIMIT?'upi':m}
@@ -3217,6 +3357,7 @@ function placeOrder(sid){
 }
 function newToken(sid){const used=new Set(liveOf(sid).map(o=>o.token));let t;do{t=String(1000+Math.floor(Math.random()*9000))}while(used.has(t));return t}
 function createOrder(sid,paid){
+  if(USE_PHP){phpCreateOrder(sid,paid);return}
   const lines=cartLines(sid);
   const total=cartTotal(sid),paise=paid&&ui.sheet?ui.sheet.paise||0:0;
   // "I have paid" is only a claim: the order waits as 'check' until the shop sees the money.
@@ -3224,8 +3365,8 @@ function createOrder(sid,paid){
   if(paid){o.ps='check';o.upiAmt=Math.round(total*100+paise)/100}
   S.orders.push(o);S.carts[sid]={};ui.sheet=null;save();emit({t:'orders',list:[o]});go('order-'+o.id);
 }
-function comingNow(id){const o=getO(id);o.coming=true;o.comingAt=S.now;save();emit({t:'coming',id:o.id,at:S.now});render()}
-function cancelOrder(id){const o=getO(id);if(o.status!=='placed'||isPart(o)||S.now>CANCEL_UNTIL||o.day!==S.day)return;o.status='cancelled';save();emit({t:'cancel',id:o.id});render()}
+function comingNow(id){if(USE_PHP){phpOrderAct(id,'coming');return}const o=getO(id);o.coming=true;o.comingAt=S.now;save();emit({t:'coming',id:o.id,at:S.now});render()}
+function cancelOrder(id){const o=getO(id);if(o.status!=='placed'||isPart(o)||S.now>CANCEL_UNTIL||o.day!==S.day)return;if(USE_PHP){phpOrderAct(id,'cancel');return}o.status='cancelled';save();emit({t:'cancel',id:o.id});render()}
 function orderAgain(id){
   const o=getO(id),s=shopOf(o.shop),st=S.shops[o.shop],c={};let left=0;
   o.items.forEach(i=>{if(itemOf(s,i.id)&&!st.sold[i.id])c[i.id]=(c[i.id]||0)+i.q;else left++});
@@ -3268,6 +3409,7 @@ function giveAdj(id,i,d){const o=getO(id),g=giveOf(o),r=o.items[i].q-dOf(o.items
 function handOver(id){
   const o=getO(id);if(!o||!isActive(o))return;
   const g=giveOf(o);if(!g.some(x=>x>0))return;
+  if(USE_PHP){const d=o.items.map((it,i)=>dOf(it)+g[i]),full=d.every((x,i)=>x>=o.items[i].q);phpShopAct(id,'give',{d}).then(ok=>{if(ok){delete ui.give[id];ui.pad='';ui.found=full?{done:o.token}:{part:id,t:o.token};render()}});return}
   const amt=o.items.reduce((t,it,i)=>t+it.p*g[i],0);
   o.items.forEach((it,i)=>{if(g[i])it.d=dOf(it)+g[i]});
   if(o.pay==='cash')o.cashPaid=(o.cashPaid||0)+amt;
@@ -3279,14 +3421,15 @@ function handOver(id){
 }
 function confirmPay(id,v){
   const o=getO(id);if(!o||!checking(o))return;
+  if(USE_PHP){if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}phpShopAct(id,'pay',{v},v==='ok'?'Payment confirmed. The student now sees token '+o.token+'.':'Marked not received. The student has been told.');return}
   o.ps=v;o.payAt=S.now;if(v==='ok')o.paid=true;else o.status='cancelled';
   save();emit({t:'pay',id:o.id,v,at:S.now});
   if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}
   ui.toast=v==='ok'?'Payment confirmed. Token '+o.token+' is now live for the student.':'Marked not received. The student has been told.';
   render();
 }
-function holdOrder(id,v){const o=getO(id);if(!o||!isActive(o))return;o.hold=v;save();emit({t:'hold',id:o.id,v});if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}render()}
-function advance(id,st){const o=getO(id);if(!o||!isActive(o))return;o.status=st;o.hold=false;save();emit({t:'st',id:o.id,st});render()}
+function holdOrder(id,v){const o=getO(id);if(!o||!isActive(o))return;if(USE_PHP){if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}phpShopAct(id,'hold',{v});return}o.hold=v;save();emit({t:'hold',id:o.id,v});if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}render()}
+function advance(id,st){const o=getO(id);if(!o||!isActive(o))return;if(USE_PHP){phpShopAct(id,'status',{status:st});return}o.status=st;o.hold=false;save();emit({t:'st',id:o.id,st});render()}
 function toggleSold(id){const st=S.shops[S.auth],v=!st.sold[id];if(v)st.sold[id]=true;else delete st.sold[id];save();emit({t:'sold',sid:S.auth,item:id,v});render()}
 function setSpecial(id){S.shops[S.auth].special=id;save();emit({t:'shop',sid:S.auth,k:'special',v:id});render()}
 function setField(k,v){
@@ -3457,7 +3600,7 @@ function orderPage(id){
   const fin={collected:'Collected. This token has been used.',cancelled:o.ps==='no'?`Payment not received. ${s.name} did not get ${rsp(upiAmt(o))} in their GPay, so this order was cancelled. If money left your account, show that payment in your UPI app at the ${s.name} counter.`:o.paid?'Cancelled. Full refund sent to your GPay.':o.pay==='upi'?`Cancelled. If you had already paid, ${s.name} sends it back to your GPay.`:'Cancelled.',expired:checking(o)?'Lunch ended before the payment was confirmed.':o.pay==='cash'?'Not collected before lunch ended. Counted as a no show.':'Not collected before lunch ended. The plate was sold at the counter, no refund.'}[o.status];
   let act='';
   if(a&&checking(o)){
-    act+=`<div class="note warn"><b>Waiting for ${s.name} to confirm your payment.</b><br>They are checking that ${rsp(upiAmt(o))} reached their GPay. Your token appears here the moment they confirm. Keep this page open.</div>`;
+    act+=`<div class="note warn"><b>Waiting for ${s.name} to confirm your payment.</b><br>They are checking that ${rsp(upiAmt(o))} reached their GPay. Your pickup PIN appears here the moment they confirm. Keep this page open.</div>`;
     if(S.now<=CANCEL_UNTIL&&o.day===S.day)act+=`<button class="btn ghost lg" onclick="cancelOrder(${o.id})">Cancel order</button>`;
   }else if(a){
     if(o.coming)act+=`<div class="note ok">${s.name} knows you are on the way since ${fmt(o.comingAt)}.</div>`;
@@ -3473,8 +3616,8 @@ function orderPage(id){
   const held=o.status==='placed'&&o.pay==='cash'&&!o.coming;
   return `<main class="page narrow"><button class="backlink" onclick="back('')">${ICON.back} Home</button>
   <div class="tk ${a?'':'off'}"><div class="tk-top">${tile(s)}<div><b>${s.name}</b><div class="small">${dayLabel(o.day)} at ${fmt(o.at)}</div></div>${a?`<span class="chip dk">${checking(o)?'Checking GPay':o.pay==='upi'?'Paid by GPay':'Pay '+rs(o.total)+' at counter'}</span>`:stChip(o)}</div>
-  <div class="tk-lbl">${a?'Your token':'Token'}</div><div class="tk-num">${checking(o)||o.ps==='no'?'····':o.token}</div>
-  <div class="tk-sub">${a&&checking(o)?`Your token shows here once ${s.name} confirms your payment of ${rsp(upiAmt(o))}.`:a?(isPart(o)?`Say this number again at the ${s.name} counter for the rest. This token stays open till every item is collected.`:`Say this number at the ${s.name} counter. Collect any time till ${fmt(LUNCH_END)}, handed over in about 2 minutes.`):fin}</div></div>
+  <div class="tk-lbl">${a?'Your pickup PIN':'Token'}</div><div class="tk-num">${checking(o)||o.ps==='no'?'····':o.token}</div>
+  <div class="tk-sub">${a&&checking(o)?`Your pickup PIN shows here once ${s.name} confirms your payment of ${rsp(upiAmt(o))}.`:a?(o.pay==='upi'&&!isPart(o)&&!o.hold?`Payment confirmed. This is your PIN to collect your order. Say it at the ${s.name} counter. Collect any time till ${fmt(LUNCH_END)}, handed over in about 2 minutes.`:isPart(o)?`Say this number again at the ${s.name} counter for the rest. This token stays open till every item is collected.`:`Say this number at the ${s.name} counter. Collect any time till ${fmt(LUNCH_END)}, handed over in about 2 minutes.`):fin}</div></div>
   ${act}
   ${idx!==undefined?`<div class="card pad tl">${steps.map(([k,l],i)=>`<div class="tl-s ${i<idx?'done':i===idx?'cur':''}"><span class="tl-d"></span><span>${l}${i===0&&held?'<em>Held until you tap I\'m coming</em>':''}</span></div>`).join('')}</div>`:''}
   <div class="card list" style="margin-top:14px">${o.items.map(i=>`<div class="it"><div class="it-b"><div class="it-n">${i.q} x ${esc(i.n)}</div>${dOf(i)?`<div class="it-p">${dOf(i)} of ${i.q} collected</div>`:''}</div><b class="lt">${rs(i.p*i.q)}</b></div>`).join('')}<div class="it tot"><div class="it-b">Total</div><b class="lt">${rs(o.total)}</b></div></div>
@@ -3527,7 +3670,7 @@ function shopPick(){
   return `<header class="nav"><div class="nav-in"><a class="logo" href="#"><span class="mark">K</span>KPR Lunch</a><span class="sp"></span></div></header>
   <main class="page mid"><section class="hero"><p class="eyebrow">For shops</p><h1 class="display" style="font-size:clamp(36px,5vw,52px)">Open a counter</h1>
   <p class="lead sm">Pick a shop to open its counter. In the live version each shop signs in once with its own PIN and the device opens straight to that counter.</p></section>
-  <div class="pick">${SHOPS.map(s=>`<button class="shop" onclick="viewAs('${s.id}')"><div class="shop-top">${tile(s,'lg')}<div class="shop-b"><div class="shop-n">${s.name}</div><div class="mute small">${s.tag}</div></div><span class="chev">${ICON.chev}</span></div></button>`).join('')}</div></main>`;
+  <div class="pick">${SHOPS.filter(s=>!USE_PHP||!S.scope||S.scope==='*'||S.scope===s.id).map(s=>`<button class="shop" onclick="viewAs('${s.id}')"><div class="shop-top">${tile(s,'lg')}<div class="shop-b"><div class="shop-n">${s.name}</div><div class="mute small">${s.tag}</div></div><span class="chev">${ICON.chev}</span></div></button>`).join('')}</div></main>`;
 }
 function kpis(){
   const t=liveOf(S.auth),act=t.filter(isActive),col=t.filter(o=>o.status==='collected');
@@ -3616,15 +3759,16 @@ function settingsView(){
 }
 function shopDash(r){
   const s=shopOf(S.auth),st=S.shops[S.auth];
-  const views={counter:counterView,orders:kitchenView,billing:billingView,closing:closingView,analytics:analyticsView,customers:customersView,menu:shopMenuView,settings:settingsView};
-  const v=views[r.name]?r.name:'counter';
-  const titles={counter:'Counter',orders:'Kitchen',billing:'Billing',closing:'Day closing',analytics:'Analytics',customers:'Customers',menu:'Menu',settings:'Settings'};
+  const views={students:studentsView,counter:counterView,orders:kitchenView,billing:billingView,closing:closingView,analytics:analyticsView,customers:customersView,menu:shopMenuView,settings:settingsView};
+  const v=views[r.name]&&(USE_PHP||r.name!=='students')?r.name:'counter';
+  const titles={students:'Students',counter:'Counter',orders:'Kitchen',billing:'Billing',closing:'Day closing',analytics:'Analytics',customers:'Customers',menu:'Menu',settings:'Settings'};
   const links=[['counter','Counter','shop'],['orders','Kitchen','shop-orders'],['billing','Billing','shop-billing'],['closing','Closing','shop-closing'],['analytics','Analytics','shop-analytics'],['customers','Customers','shop-customers'],['menu','Menu','shop-menu'],['settings','Settings','shop-settings']];
+  if(USE_PHP)links.splice(6,0,['customers','Students','shop-students']);
   const pending=liveOf(S.auth).filter(o=>o.status==='placed'||o.status==='cooking').length,checks=toCheck(S.auth).length;
   const status=!st.open?'Not taking orders':ordering()?'Taking orders till '+fmt(CUTOFF):'Ordering closed';
   return `<div class="dash"><aside class="side"><div class="brandbox">${tile(s,'lg')}<div><b>${s.name}</b><div class="mute small">Counter</div></div></div>
   <nav>${links.map(([k,l,h])=>`<a href="#${h}" class="${k===v?'on':''}">${ICON[k]}<span>${l}</span>${k==='orders'&&pending?`<em>${pending}</em>`:''}${k==='counter'&&checks?`<em class="warn">${checks}</em>`:''}</a>`).join('')}</nav>
-  <div class="side-f"><span class="chip ${st.open&&ordering()?'ok':'line'}">${status}</span></div></aside>
+  <div class="side-f"><span class="chip ${st.open&&ordering()?'ok':'line'}">${status}</span>${USE_PHP?'<button class="btn ghost sm" style="margin-top:10px" onclick="logout()">Sign out</button>':''}</div></aside>
   <main class="main"><div class="main-h"><div><p class="eyebrow"><span class="live ${st.open&&ordering()?'':'off'}"></span>${s.name}</p><h1>${titles[v]}</h1></div><span class="clock">${fmt(S.now)}</span></div>${ui.toast?`<div class="note ok" style="margin:0 0 16px">${esc(ui.toast)}</div>`:''}${views[v]()}</main></div>`;
 }
 
@@ -4058,6 +4202,7 @@ function customersView(){
 
 /* ---------- demo dock ---------- */
 function demoHtml(){
+  if(USE_PHP)return '';
     const jumps=[[660,'11:00 AM'],[750,'12:30 orders close'],[760,'12:40 cancel closes'],[770,'12:50 I\'m coming opens'],[775,'12:55 lunch starts'],[826,'1:46 lunch over']];
   const panel=ui.demo?`<div class="dpanel"><h4>Time of day</h4><div class="g">${jumps.map(([m,l])=>`<button class="${S.now===m?'on':''}" onclick="setNow(${m})">${l}</button>`).join('')}</div>
    <h4>Adjust</h4><div class="g"><button onclick="addNow(-5)">Back 5 min</button><button onclick="addNow(5)">Forward 5 min</button><button onclick="addNow(30)">Forward 30 min</button><button onclick="nextDay()">Next day</button></div>
@@ -4072,7 +4217,8 @@ function renderInner(){
   sweep();
   const r=route();
   let h;
-  if(r.shop)h=S.auth?shopDash(r):shopPick();
+  if(USE_PHP&&S.scope&&S.scope!=='*'&&S.auth!==S.scope)S.auth=S.scope;
+  if(r.shop)h=USE_PHP&&(!getTok()||S.role!=='admin')?shopLogin():S.auth?shopDash(r):shopPick();
   else if(!S.roll||!S.email||!S.phone)h=studentLogin();
   else h=studentNav(r)+({home,menu:menuPage,cart:cartPage,order:orderPage,orders:ordersPage}[r.name]||home)(r.arg);
   const key=location.hash+'|'+!!(S.roll&&S.email&&S.phone)+'|'+(S.auth||'');
@@ -4103,9 +4249,16 @@ function tipAt(e){const t=e.target.closest&&e.target.closest('[data-tip]');if(!t
 document.addEventListener('mousemove',tipAt);document.addEventListener('focusin',tipAt);
 document.addEventListener('click',e=>{if(e.target.closest('[data-tip]'))tipAt(e);else tipEl.style.opacity=0});
 addEventListener('scroll',()=>tipEl.style.opacity=0,{passive:true});
+if(USE_PHP){
+  phpClock();
+  if(MODE==='student'&&getTok()&&S.role==='admin'&&!S.roll)location.replace('shop.html');
+  setInterval(()=>{if(document.hidden)return;if(phpClock())softRender();phpSync()},MODE==='shop'?3000:5000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){phpClock();phpSync()}});
+}
 render();
 connect();
 flush();
+if(USE_PHP)phpSync();
 </script>
 </body>
 </html>
