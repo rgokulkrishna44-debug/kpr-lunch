@@ -3064,7 +3064,7 @@ window.addEventListener('online',()=>{flush();connect()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){flush();if(!net.on)connect()}});
 
 /* ---------- PHP backend (only when USE_PHP): login, roles, orders, student records ---------- */
-const TOK_K=USE_PHP?'kprlunch_v8_php_tok':K+'_tok';   // one sign in for both pages on this device
+const TOK_K=USE_PHP?'kprlunch_v8_php_tok'+(MODE==='shop'?'_shop':''):K+'_tok';   // student and shop pages sign in separately, so one browser can hold both
 const getTok=()=>{try{return localStorage.getItem(TOK_K)||''}catch(e){return ''}};
 const setTok=t=>{try{t?localStorage.setItem(TOK_K,t):localStorage.removeItem(TOK_K)}catch(e){}};
 async function php(method,path,body){
@@ -3079,15 +3079,19 @@ async function php(method,path,body){
   finally{clearTimeout(t)}
 }
 /* The sign in lives in the device token. If this page has no local identity yet (first time on this page, cleared storage, or signed in on the other page), ask the server who it is. */
+// A shop account signed in on the student page: hand the sign in over to the shop page.
+function toShopPage(){const t=getTok();setTok('');try{localStorage.setItem(TOK_K+'_shop',t)}catch(e){}S.role='';S.email='';S.scope='';S.auth=null;save();location.replace('shop.html')}
 async function phpRestore(){
-  if(!USE_PHP||!getTok())return;
-  if(S.role==='admin'||(S.roll&&S.role!=='admin'))return;
+  if(!USE_PHP)return;
+  if(!getTok()){if(S.role||S.roll)phpExpired();return}   // saved under the old shared sign in: ask again
+  if(MODE==='shop'&&S.role==='admin')return;
   const r=await php('GET','me');
   if(r.s!==200||!r.j.user)return;
   const u=r.j.user;
+  if(u.role==='admin'&&MODE==='student'&&S.roll){setTok('');phpExpired();return}   // old shared sign in left a shop token on the student page
   if(u.role==='admin'){
     S.email=u.email;S.role='admin';S.scope=u.shop||'';S.auth=S.scope&&S.scope!=='*'?S.scope:null;save();
-    if(MODE==='student'){location.replace('shop.html');return}
+    if(MODE==='student'){toShopPage();return}
     render();phpSync();return;
   }
   S.email=u.email;S.roll=u.uid;S.name=u.name;S.phone=u.phone;S.role='student';save();render();phpSync();
@@ -3141,7 +3145,9 @@ async function phpCreateOrder(sid,paid){
   const r=await php('POST','orders',{shop:sid,pay:paid?'upi':'cash',items:cartLines(sid).map(l=>({id:l.id,q:l.qty})),paise:paid&&ui.sheet?ui.sheet.paise:0,pre:!!(ui.sheet&&ui.sheet.pre)});
   ui.placing=false;
   if(r.s===201&&r.j.order){const o=mapOrder(r.j.order,false);upsertLocal(o);S.carts[sid]={};ui.sheet=null;save();syncSig='';go('order-'+o.id);return}
-  ui.sheet=null;ui.toast=(r.j&&r.j.error)||'Could not place the order. Try again.';render();
+  const why=(r.j&&r.j.error)||'Could not place the order. Try again.';
+  if(ui.sheet&&ui.sheet.type==='pay')ui.sheet.err=why;else ui.toast=why;   // money may already have left: say so on the screen they are looking at
+  render();
 }
 async function phpOrderAct(id,act){
   const r=await php('POST','orders/'+id+'/'+act,{});
@@ -3194,7 +3200,7 @@ async function phpOtp(path,data){
 function phpLanded(r,mail){
   if(r.role==='admin'){
     S.email=mail;S.role='admin';S.scope=r.shop||'';S.auth=S.scope&&S.scope!=='*'?S.scope:null;ui.lg=null;clearInterval(lgTimer);save();
-    if(MODE==='shop'){go('shop');render();phpSync()}else location.href='shop.html';
+    if(MODE==='shop'){go('shop');render();phpSync()}else toShopPage();
     return true;
   }
   if(MODE==='shop'){location.href='index.html';return true}
@@ -3787,6 +3793,7 @@ function sheetHtml(){
     <div class="payto">${tile(s,'lg')}<div><div class="mute small">Paying to</div><b>${s.name}</b><div class="mono small mute">${esc(upiShow(s))}</div></div></div>
     <div class="amt">${rsp(amt)}</div>${ui.sheet.pre?'<p class="center small" style="margin:0 0 4px"><b>Preorder for tomorrow</b></p>':''}<p class="center mute small" style="margin:0">${plural(n,'item')} from ${s.name}, ${rs(base)} plus ${ui.sheet.paise||0} paise so ${s.name} can match your payment</p>
     <div class="qrbox"><div class="qr">${upiQr(upiLink(s,amt,S.roll))}</div><div class="mute small center">Scan with any UPI app. Pay exactly ${rsp(amt)}.</div><a class="btn lg ghost upi-open" href="${esc(upiLink(s,amt,S.roll))}">Open UPI app on this phone</a></div>
+    ${ui.sheet.err?`<div class="note warn"><b>Your order did not reach ${s.name}.</b><br>${esc(ui.sheet.err)} If you already paid, do not pay again. Tap the button below to try once more.</div>`:''}
     <button class="btn lg ok" onclick="createOrder('${s.id}',true)">I have paid ${rsp(amt)}</button>
     <p class="fine center">${s.name} checks that ${rsp(amt)} reached their UPI, then your token goes live. Screenshots are not accepted at the counter.${USE_PHP?'':' Demo: the UPI ID is a placeholder, do not pay it.'}</p>`;
   }else if(ui.sheet.type==='done'){
@@ -4422,7 +4429,7 @@ document.addEventListener('click',e=>{if(e.target.closest('[data-tip]'))tipAt(e)
 addEventListener('scroll',()=>tipEl.style.opacity=0,{passive:true});
 if(USE_PHP){
   phpClock();
-  if(MODE==='student'&&getTok()&&S.role==='admin'&&!S.roll)location.replace('shop.html');
+  if(MODE==='student'&&getTok()&&S.role==='admin'&&!S.roll)toShopPage();
   else{phpRestore();autoSignIn()}
   php('GET','clock').then(r=>{if(r.s===200&&r.j.noTimers){clockOff();softRender()}});
   setInterval(()=>{if(document.hidden)return;if(phpClock()&&!ui.lg)softRender();phpSync();if(MODE==='shop'&&location.hash==='#shop-pre'&&S.auth)preLoad()},MODE==='shop'?3000:5000);
