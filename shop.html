@@ -3071,7 +3071,7 @@ async function php(method,path,body){
     const h={};if(body!==undefined)h['Content-Type']='application/json';if(tk)h.Authorization='Bearer '+tk;
     const r=await fetch(PHP.replace(/\/$/,'')+'/'+path,{method,headers:h,body:body!==undefined?JSON.stringify(body):undefined,signal:ac.signal});
     let j={};try{j=await r.json()}catch(e){}
-    if(r.status===401&&tk&&!/^(otp|totp|profile)/.test(path))phpExpired();
+    if(r.status===401&&tk&&!/^(otp|totp|profile|login)/.test(path))phpExpired();
     return {s:r.status,j};
   }catch(e){return {s:0,j:{error:e&&e.name==='AbortError'?'This is taking too long. Try again in a moment.':'No connection. Check your internet and try again.'}}}
   finally{clearTimeout(t)}
@@ -3099,7 +3099,7 @@ function phpClock(){const n=Date.now(),m=istMin(n),d=dayNum(n);if(m!==S.now||d!=
 function mapOrder(x,shopSide){
   const o={id:x.id,day:dayStrNum(x.day),roll:shopSide?((x.student&&x.student.name)||'Student'):S.roll,shop:x.shop,
     items:x.items.map(i=>{const r={id:i.id,n:i.n,p:i.p,q:i.q};if(i.d)r.d=i.d;return r}),
-    total:x.total,pay:x.pay,paid:x.pay==='upi'&&x.ps==='ok',status:x.status,coming:!!x.coming,token:x.token||'',at:istMin(x.created),hold:!!x.hold};
+    total:x.total,pay:x.pay,paid:x.pay==='upi'&&x.ps==='ok',status:x.status,coming:!!x.coming,token:x.token||'',bill:x.billNo||0,at:istMin(x.created),hold:!!x.hold};
   if(x.ps==='check'||x.ps==='ok'||x.ps==='no')o.ps=x.ps;
   if(x.pay==='upi'&&x.upiAmt)o.upiAmt=x.upiAmt;
   if(x.cashPaid)o.cashPaid=x.cashPaid;
@@ -3138,7 +3138,7 @@ async function phpOrderAct(id,act){
 async function phpShopAct(id,act,body,okMsg){
   const r=await php('POST','shop/'+S.auth+'/orders/'+id+'/'+act,body);
   const ok=r.s===200&&r.j.order;
-  if(ok){upsertLocal(mapOrder(r.j.order,true));if(okMsg)ui.toast=okMsg}else ui.toast=(r.j&&r.j.error)||'That did not work. Try again.';
+  if(ok){const m=mapOrder(r.j.order,true);upsertLocal(m);if(okMsg)ui.toast=typeof okMsg==='function'?okMsg(m):okMsg}else ui.toast=(r.j&&r.j.error)||'That did not work. Try again.';
   syncSig='';render();phpSync();return !!ok;
 }
 /* login on the PHP backend, answered in the same shape the old n8n routes used so the login screens stay as they are */
@@ -3150,7 +3150,18 @@ async function phpOtp(path,data){
     if(r.j.step)return {ok:true,step:r.j.step,ticket:r.j.ticket,secret:r.j.secret||'',uri:r.j.uri||''};
     if(r.j.isNew)return {ok:true,isNew:true,pt:r.j.pt,uid:'new'};
     setTok(r.j.token);const u=r.j.user;S.role=u.role;S.scope=u.shop||'';
-    return {ok:true,isNew:false,uid:u.uid,name:u.name,phone:u.phone,role:u.role,shop:u.shop};
+    return {ok:true,isNew:false,uid:u.uid,name:u.name,phone:u.phone,role:u.role,shop:u.shop,hasPw:u.hasPw};
+  }
+  if(path==='login'){
+    const r=await php('POST','login',{email:data.email,password:data.password});
+    if(r.s!==200||!r.j.ok)return {ok:false,error:r.j.error||'Could not log in. Try again.'};
+    if(r.j.step)return {ok:true,step:r.j.step,ticket:r.j.ticket,secret:r.j.secret||'',uri:r.j.uri||''};
+    setTok(r.j.token);const u=r.j.user;S.role=u.role;S.scope=u.shop||'';
+    return {ok:true,isNew:false,uid:u.uid,name:u.name,phone:u.phone,role:u.role,shop:u.shop,hasPw:u.hasPw};
+  }
+  if(path==='password'){
+    const r=await php('POST','password',{password:data.password});
+    return r.s===200?{ok:true}:{ok:false,error:r.j.error||'Could not save your password. Try again.'};
   }
   if(path==='totp'){
     const r=await php('POST','totp',{ticket:data.ticket,code:data.code});
@@ -3192,8 +3203,8 @@ function studentsView(){
     <div class="kpis" style="margin-top:14px"><div class="kpi"><span>Logins</span><b>${s.logins}</b></div><div class="kpi"><span>Orders</span><b>${d.orders.length}</b></div>
     <div class="kpi"><span>Collected</span><b>${d.orders.filter(o=>o.status==='collected').length}</b></div><div class="kpi"><span>Spent</span><b>${rs(d.orders.filter(o=>o.status==='collected').reduce((a,o)=>a+o.total,0))}</b></div></div>
     <p class="fine" style="margin-top:12px">Joined ${whenIST(s.joined)}. Recent logins: ${d.loginTimes.slice(0,8).map(whenIST).join(', ')||'none'}.</p></div>
-    <div class="card tblwrap" style="margin-top:14px"><table class="tbl"><thead><tr><th>Day</th><th>Shop</th><th>Items</th><th>Total</th><th>Pay</th><th>Status</th></tr></thead><tbody>
-    ${d.orders.map(o=>`<tr><td>${esc(o.day)}</td><td>${esc(sn(o.shop))}</td><td>${o.items.map(i=>i.q+' x '+esc(i.n)).join(', ')}</td><td class="mono">${rs(o.total)}</td><td>${o.pay==='upi'?'GPay':'Cash'}</td><td>${esc(o.status)}</td></tr>`).join('')||'<tr><td colspan="6" class="mute">No orders yet.</td></tr>'}</tbody></table></div>`;
+    <div class="card tblwrap" style="margin-top:14px"><table class="tbl"><thead><tr><th>Day</th><th>Bill</th><th>Shop</th><th>Items</th><th>Total</th><th>Pay</th><th>Paid</th><th>Status</th></tr></thead><tbody>
+    ${d.orders.map(o=>`<tr><td>${esc(o.day)}</td><td class="mono">${o.billNo||''}</td><td>${esc(sn(o.shop))}</td><td>${o.items.map(i=>i.q+' x '+esc(i.n)+' at '+rs(i.p)).join(', ')}</td><td class="mono">${rs(o.total)}</td><td>${o.pay==='upi'?'QR':'Cash'}</td><td>${{yes:'Yes',no:'No',waiting:'Waiting',counter:'At counter'}[o.paid]||''}</td><td>${esc(o.status)}</td></tr>`).join('')||'<tr><td colspan="8" class="mute">No orders yet.</td></tr>'}</tbody></table></div>`;
   }
   return `<div class="row2" style="margin-bottom:14px"><input class="input" placeholder="Search name, Gmail or phone" value="${esc(g.q)}" oninput="stu().q=this.value" onkeydown="if(event.key==='Enter')stuLoad()"><button class="btn" onclick="stuLoad()">Search</button></div>
   ${g.err?`<div class="note warn" style="margin-bottom:12px">${esc(g.err)}</div>`:''}
@@ -3307,6 +3318,13 @@ function loginForm(){
   <div class="row2"><input id="lgphone" class="input mono" inputmode="numeric" maxlength="10" autocomplete="tel-national" enterkeyhint="go" placeholder="10 digit mobile number" value="${esc(g.phone)}" oninput="lgPhone(this)" onkeydown="if(event.key==='Enter')profSave()"><button class="btn" id="lgbtn" onclick="profSave()" ${g.busy?'disabled':''}>${g.busy?'Saving':'Continue'}</button></div>
   <div id="lgErr" class="err">${esc(g.err)}</div>
   <p class="fine" style="margin-top:2px">Gmail: <b>${esc(g.email)}</b>. <button onclick="lgBack()">Use a different Gmail</button></p>`;
+  if(g.step==='password')return `<form novalidate onsubmit="pwSave();return false"><p class="fine" style="margin:0 0 10px">One last step. Create a password for KPR Lunch. Your browser will offer to save it in your Google account, so next time you are logged in without typing anything.</p>
+  <label class="lbl" for="lgpwmail">Gmail address</label>
+  <input id="lgpwmail" class="input" type="email" name="username" autocomplete="username" readonly value="${esc(g.email)}">
+  <label class="lbl" for="lgpw" style="margin-top:10px">New password</label>
+  <div class="row2"><input id="lgpw" class="input" type="password" name="password" minlength="8" maxlength="72" autocomplete="new-password" enterkeyhint="go" placeholder="At least 8 characters" oninput="lgErrClear()"><button class="btn" id="lgbtn" type="submit" ${g.busy?'disabled':''}>Save</button></div>
+  <div id="lgErr" class="err">${esc(g.err)}</div>
+  <p class="fine" style="margin-top:2px">Tap Save when your browser asks to save the password.</p></form>`;
   if(g.step==='totp_setup'||g.step==='totp')return `<p class="fine" style="margin:0 0 10px">${g.step==='totp_setup'?'Email code accepted. The counter needs one more step. Open an authenticator app (Google Authenticator, Microsoft Authenticator or 1Password), add an account by scanning this code, then type the 6 digit code it shows. You only do this once.':'Email code accepted. Open your authenticator app and type the 6 digit code for KPR Lunch. This device stays signed in, so you will not be asked again here.'}</p>
   ${g.step==='totp_setup'?`<div style="width:176px;margin:0 0 8px;background:#fff;padding:8px;border-radius:12px">${upiQr(g.uri)}</div><p class="fine" style="margin:0 0 10px">Cannot scan? Type this key in the app: <b class="mono" style="word-break:break-all">${esc(g.secret)}</b></p>`:''}
   <label class="lbl" for="lgtotp">Authenticator code</label>
@@ -3318,19 +3336,30 @@ function loginForm(){
   <div id="lgErr" class="err">${esc(g.err)}</div>
   <p class="fine" style="margin-top:2px">We sent a code to <b>${esc(g.email)}</b>. It works for 10 minutes. Check spam if you do not see it.
   <button id="lgre" onclick="otpSend()" ${g.cool>0?'disabled':''}>${g.cool>0?'Send again in '+g.cool+' s':'Send again'}</button> <button onclick="lgBack()">Use a different Gmail</button></p>`;
-  return `<div class="seg" role="tablist"><button type="button" class="${g.mode==='login'?'on':''}" onclick="lgMode('login')">Log in</button><button type="button" class="${g.mode==='create'?'on':''}" onclick="lgMode('create')">Create account</button></div>
+  const tabs=`<div class="seg" role="tablist"><button type="button" class="${g.mode==='login'?'on':''}" onclick="lgMode('login')">Log in</button><button type="button" class="${g.mode==='create'?'on':''}" onclick="lgMode('create')">Create account</button></div>`;
+  if(USE_PHP&&MODE==='student'&&g.mode==='login'&&!g.useCode)return `<form novalidate onsubmit="pwLogin();return false">${tabs}
+  <label class="lbl" for="lgmail">Gmail address</label>
+  <input id="lgmail" class="input" type="email" name="username" inputmode="email" maxlength="120" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="next" placeholder="you@gmail.com" value="${esc(g.email)}" oninput="lgMail(this)">
+  <label class="lbl" for="lgpw" style="margin-top:10px">Password</label>
+  <div class="row2"><input id="lgpw" class="input" type="password" name="password" maxlength="72" autocomplete="current-password" enterkeyhint="go" placeholder="Your password" oninput="lgErrClear()"><button class="btn" id="lgbtn" type="submit" ${g.busy?'disabled':''}>Log in</button></div>
+  <div id="lgErr" class="err">${esc(g.err)}</div>
+  <p class="fine" style="margin-top:2px">Your saved password fills in here. <button type="button" onclick="lgUseCode(false)">Log in with an email code</button> <button type="button" onclick="lgUseCode(true)">Forgot password</button></p></form>`;
+  return `${tabs}
+  ${g.useCode&&g.mode==='login'?`<p class="fine" style="margin:0 0 10px">${g.forgot?'We email you a 6 digit code, then you set a new password.':'We email you a 6 digit code to log in.'} <button onclick="lgUseCode(null)">Use my password</button></p>`:''}
   <label class="lbl" for="lgmail">Gmail address</label>
   <div class="row2"><input id="lgmail" class="input" type="email" inputmode="email" maxlength="120" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go" placeholder="you@gmail.com" value="${esc(g.email)}" oninput="lgMail(this)" onkeydown="if(event.key==='Enter')otpSend()"><button class="btn" id="lgbtn" onclick="otpSend()" ${g.busy?'disabled':''}>${g.busy?'Sending':'Send code'}</button></div>
   <div id="lgErr" class="err">${esc(g.err)}</div>
-  <p class="fine" style="margin-top:2px">${g.mode==='create'?'New here? We email you a 6 digit code, then ask your name and phone once. No password to remember.':'We email you a 6 digit code. No password to remember. This device stays signed in, so you only do this once.'} Your orders and history stay with your Gmail.</p>`;
+  <p class="fine" style="margin-top:2px">${g.mode==='create'?'New here? We email you a 6 digit code, then ask your name, phone and a password once.':'This device stays signed in, so you only do this once.'} Your orders and history stay with your Gmail.</p>`;
 }
 function lgMail(el){const g=lg();g.email=el.value.trim();g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
 function lgName(el){const g=lg();g.name=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
 function lgPhone(el){el.value=el.value.replace(/\D/g,'').slice(0,10);const g=lg();g.phone=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
 function lgCode(el){el.value=el.value.replace(/\D/g,'').slice(0,6);const g=lg();g.code=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent='';if(g.code.length===6)otpVerify()}
 function lgTotp(el){el.value=el.value.replace(/\D/g,'').slice(0,6);const g=lg();g.tcode=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent='';if(g.tcode.length===6)totpVerify()}
-function lgMode(m){const g=lg();g.mode=m;g.err='';render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
-function lgBack(){ui.lg={step:'email',mode:lg().mode||'login',email:lg().email,code:'',busy:false,err:'',cool:0,name:'',phone:'',pt:'',uid:''};render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
+function lgErrClear(){const g=lg();g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
+function lgUseCode(forgot){const g=lg();const m=document.getElementById('lgmail');if(m)g.email=m.value.trim();g.useCode=forgot!==null;g.forgot=!!forgot;g.err='';render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
+function lgMode(m){const g=lg();g.mode=m;g.useCode=false;g.forgot=false;g.err='';render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
+function lgBack(){const p=lg();ui.lg={step:'email',mode:p.mode||'login',useCode:p.useCode,forgot:p.forgot,email:p.email,code:'',busy:false,err:'',cool:0,name:'',phone:'',pt:'',uid:''};render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
 function otpPost(path,data){
   if(USE_PHP)return phpOtp(path,data);
   const ac=new AbortController(),t=setTimeout(()=>ac.abort(),25000);
@@ -3364,6 +3393,7 @@ async function otpVerify(){
   g.busy=false;
   if(USE_PHP&&r&&r.ok&&r.step){g.step=r.step;g.ticket=r.ticket;g.secret=r.secret||'';g.uri=r.uri||'';g.tcode='';g.err='';clearInterval(lgTimer);render();setTimeout(()=>{const i=document.getElementById('lgtotp');if(i)i.focus()},50);return}
   if(USE_PHP&&r&&r.ok&&!r.isNew&&phpLanded(r,g.email))return;
+  if(USE_PHP&&r&&r.ok&&r.uid&&!r.isNew&&(g.forgot||!r.hasPw)){lgAskPw(r);return}
   if(!USE_PHP&&r&&r.ok&&r.uid&&await isAdminMail(g.email)){ui.lg=null;clearInterval(lgTimer);location.href='shop.html';return}
   if(r&&r.ok&&r.uid&&r.isNew&&r.pt){g.step='profile';g.pt=r.pt;g.uid=r.uid;g.err='';clearInterval(lgTimer);render();setTimeout(()=>{const i=document.getElementById('lgname');if(i)i.focus()},50)}
   else if(r&&r.ok&&r.uid&&r.name&&r.phone){S.email=g.email;S.roll=r.uid;S.name=r.name;S.phone=r.phone;ui.lg=null;clearInterval(lgTimer);save();go('')}
@@ -3386,12 +3416,52 @@ async function profSave(){
   g.busy=true;g.err='';render();
   const r=await otpPost('profile',{email:g.email,pt:g.pt,name:nm,phone:g.phone});
   g.busy=false;
+  if(USE_PHP&&r&&r.ok&&r.uid){lgAskPw(Object.assign({},r,{name:r.name||nm,phone:r.phone||g.phone}));return}
   if(r&&r.ok&&r.uid){S.email=g.email;S.roll=r.uid;S.role='student';S.name=r.name||nm;S.phone=r.phone||g.phone;ui.lg=null;clearInterval(lgTimer);save();go('')}
   else{g.err=(r&&r.error)||'Could not save. Try again.';render()}
 }
+/* Password step. The page never keeps the password: it goes to the server once and the browser's password manager (Google, iCloud) holds it. */
+function lgFinish(r,mail){S.email=mail;S.roll=r.uid;S.role='student';S.name=r.name;S.phone=r.phone;ui.lg=null;clearInterval(lgTimer);save();go('')}
+function lgAskPw(r){const g=lg();g.step='password';g.after=r;g.err='';clearInterval(lgTimer);render();setTimeout(()=>{const i=document.getElementById('lgpw');if(i)i.focus()},50)}
+function lgBtn(on,t){const b=document.getElementById('lgbtn');if(b){b.disabled=on;b.textContent=t}}
+function lgFail(m){const e=document.getElementById('lgErr');if(e)e.textContent=m}
+async function pwSave(){
+  const g=lg(),el=document.getElementById('lgpw');if(g.busy||!el)return;
+  const pw=el.value;
+  if(pw.length<8){lgFail('Use at least 8 characters');return}
+  g.busy=true;lgBtn(true,'Saving');
+  const r=await otpPost('password',{password:pw});
+  g.busy=false;
+  if(!r||!r.ok){lgBtn(false,'Save');lgFail((r&&r.error)||'Could not save your password. Try again.');return}
+  if(window.PasswordCredential)try{navigator.credentials.store(new PasswordCredential({id:g.email,password:pw,name:g.after.name||g.email})).catch(()=>{})}catch(e){}
+  lgFinish(g.after,g.email);
+}
+async function pwLogin(){
+  const g=lg(),m=document.getElementById('lgmail'),el=document.getElementById('lgpw');if(g.busy||!m||!el)return;
+  const mail=m.value.trim().toLowerCase(),pw=el.value;   // read from the page: a saved password can fill in without any typing event
+  g.email=mail;
+  if(!EMAIL_RE.test(mail)){lgFail('Enter your Gmail address, like you@gmail.com');return}
+  if(!pw){lgFail('Type your password');return}
+  g.busy=true;lgBtn(true,'Checking');
+  const r=await otpPost('login',{email:mail,password:pw});
+  g.busy=false;
+  if(r&&r.ok&&r.step){g.step=r.step;g.ticket=r.ticket;g.secret=r.secret||'';g.uri=r.uri||'';g.tcode='';g.err='';render();return}
+  if(r&&r.ok){if(!phpLanded(r,mail))lgFinish(r,mail);return}
+  lgBtn(false,'Log in');lgFail((r&&r.error)||'Could not log in. Try again.');
+}
+/* Signed out on this device but the browser has the password saved: log in without asking. Chrome and Android only; Safari fills the form instead. */
+async function autoSignIn(){
+  if(!USE_PHP||MODE!=='student'||getTok()||!window.PasswordCredential)return;
+  try{
+    const c=await navigator.credentials.get({password:true,mediation:'silent'});
+    if(!c||!c.password||getTok())return;
+    const r=await phpOtp('login',{email:c.id,password:c.password});
+    if(r&&r.ok&&!r.step&&!phpLanded(r,c.id))lgFinish(r,c.id);
+  }catch(e){}
+}
 /* test and demo helper: sign in without email */
 function setRoll(v){S.roll=v;S.email=v.toLowerCase()+'@demo.test';S.name=S.name||v;S.phone=S.phone||'9000000000';save();go('')}
-function logout(){if(USE_PHP){php('POST','logout',{});setTok('');S.role='';S.scope='';S.auth=null;S.orders=[];syncSig=''}S.roll='';S.email='';S.name='';S.phone='';ui.lg=null;ui.sheet=null;save();go('')}
+function logout(){if(USE_PHP){php('POST','logout',{});if(navigator.credentials&&navigator.credentials.preventSilentAccess)navigator.credentials.preventSilentAccess().catch(()=>{});setTok('');S.role='';S.scope='';S.auth=null;S.orders=[];syncSig=''}S.roll='';S.email='';S.name='';S.phone='';ui.lg=null;ui.sheet=null;save();go('')}
 function qty(sid,id,d){const c=cartOf(sid);c[id]=Math.max(0,(c[id]||0)+d);if(!c[id])delete c[id];save();render()}
 function pickPay(sid,m){ui.pay[sid]=m;render()}
 function payMethod(sid){const m=ui.pay[sid]||'upi';return m==='cash'&&strikes()>=STRIKE_LIMIT?'upi':m}
@@ -3465,7 +3535,7 @@ function handOver(id){
 }
 function confirmPay(id,v){
   const o=getO(id);if(!o||!checking(o))return;
-  if(USE_PHP){if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}phpShopAct(id,'pay',{v},v==='ok'?'Payment confirmed. The student now sees token '+o.token+'.':'Marked not received. The student has been told.');return}
+  if(USE_PHP){if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}phpShopAct(id,'pay',{v},v==='ok'?m=>'Payment verified. Bill '+m.bill+' gets token '+m.token+'.':'Marked as not paid. The student has been told.');return}
   o.ps=v;o.payAt=S.now;if(v==='ok')o.paid=true;else o.status='cancelled';
   save();emit({t:'pay',id:o.id,v,at:S.now});
   if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}
@@ -3644,7 +3714,7 @@ function orderPage(id){
   const fin={collected:'Collected. This token has been used.',cancelled:o.ps==='no'?`Payment not received. ${s.name} did not get ${rsp(upiAmt(o))} in their GPay, so this order was cancelled. If money left your account, show that payment in your UPI app at the ${s.name} counter.`:o.paid?'Cancelled. Full refund sent to your GPay.':o.pay==='upi'?`Cancelled. If you had already paid, ${s.name} sends it back to your GPay.`:'Cancelled.',expired:checking(o)?'Lunch ended before the payment was confirmed.':o.pay==='cash'?'Not collected before lunch ended. Counted as a no show.':'Not collected before lunch ended. The plate was sold at the counter, no refund.'}[o.status];
   let act='';
   if(a&&checking(o)){
-    act+=`<div class="note warn"><b>Waiting for ${s.name} to confirm your payment.</b><br>They are checking that ${rsp(upiAmt(o))} reached their GPay. Your pickup PIN appears here the moment they confirm. Keep this page open.</div>`;
+    act+=`<div class="note warn"><b>Waiting for ${s.name} to confirm your payment.</b><br>They are checking that ${rsp(upiAmt(o))} reached their GPay. Your token appears here the moment they confirm. This page updates by itself.</div>`;
     if(S.now<=CANCEL_UNTIL&&o.day===S.day)act+=`<button class="btn ghost lg" onclick="cancelOrder(${o.id})">Cancel order</button>`;
   }else if(a){
     if(o.coming)act+=`<div class="note ok">${s.name} knows you are on the way since ${fmt(o.comingAt)}.</div>`;
@@ -3659,9 +3729,9 @@ function orderPage(id){
   const idx={placed:0,cooking:1,ready:2,collected:3}[o.status];
   const held=o.status==='placed'&&o.pay==='cash'&&!o.coming;
   return `<main class="page narrow"><button class="backlink" onclick="back('')">${ICON.back} Home</button>
-  <div class="tk ${a?'':'off'}"><div class="tk-top">${tile(s)}<div><b>${s.name}</b><div class="small">${dayLabel(o.day)} at ${fmt(o.at)}</div></div>${a?`<span class="chip dk">${checking(o)?'Checking GPay':o.pay==='upi'?'Paid by GPay':'Pay '+rs(o.total)+' at counter'}</span>`:stChip(o)}</div>
-  <div class="tk-lbl">${a?'Your pickup PIN':'Token'}</div><div class="tk-num">${checking(o)||o.ps==='no'?'····':o.token}</div>
-  <div class="tk-sub">${a&&checking(o)?`Your pickup PIN shows here once ${s.name} confirms your payment of ${rsp(upiAmt(o))}.`:a?(o.pay==='upi'&&!isPart(o)&&!o.hold?`Payment confirmed. This is your PIN to collect your order. Say it at the ${s.name} counter. Collect any time till ${fmt(LUNCH_END)}, handed over in about 2 minutes.`:isPart(o)?`Say this number again at the ${s.name} counter for the rest. This token stays open till every item is collected.`:`Say this number at the ${s.name} counter. Collect any time till ${fmt(LUNCH_END)}, handed over in about 2 minutes.`):fin}</div></div>
+  <div class="tk ${a?'':'off'}"><div class="tk-top">${tile(s)}<div><b>${s.name}</b><div class="small">${o.bill?'Bill '+o.bill+', ':''}${dayLabel(o.day)} at ${fmt(o.at)}</div></div>${a?`<span class="chip dk">${checking(o)?'Checking GPay':o.pay==='upi'?'Paid by GPay':'Pay '+rs(o.total)+' at counter'}</span>`:stChip(o)}</div>
+  <div class="tk-lbl">${a?'Your token':'Token'}</div><div class="tk-num">${checking(o)||o.ps==='no'?'····':o.token}</div>
+  <div class="tk-sub">${a&&checking(o)?`Your token shows here once ${s.name} confirms your payment of ${rsp(upiAmt(o))}.`:a?(o.pay==='upi'&&!isPart(o)&&!o.hold?`Payment verified. This is your token to collect your order. Say it at the ${s.name} counter. Collect any time till ${fmt(LUNCH_END)}, handed over in about 2 minutes.`:isPart(o)?`Say this number again at the ${s.name} counter for the rest. This token stays open till every item is collected.`:`Say this number at the ${s.name} counter. Collect any time till ${fmt(LUNCH_END)}, handed over in about 2 minutes.`):fin}</div></div>
   ${act}
   ${idx!==undefined?`<div class="card pad tl">${steps.map(([k,l],i)=>`<div class="tl-s ${i<idx?'done':i===idx?'cur':''}"><span class="tl-d"></span><span>${l}${i===0&&held?'<em>Held until you tap I\'m coming</em>':''}</span></div>`).join('')}</div>`:''}
   <div class="card list" style="margin-top:14px">${o.items.map(i=>`<div class="it"><div class="it-b"><div class="it-n">${i.q} x ${esc(i.n)}</div>${dOf(i)?`<div class="it-p">${dOf(i)} of ${i.q} collected</div>`:''}</div><b class="lt">${rs(i.p*i.q)}</b></div>`).join('')}<div class="it tot"><div class="it-b">Total</div><b class="lt">${rs(o.total)}</b></div></div>
@@ -3745,7 +3815,7 @@ function resultHtml(){
 function checkCard(){
   const l=toCheck(S.auth);
   if(!l.length)return '';
-  return `<div class="card pad paycheck"><div class="sec-h"><h3>Check GPay payments</h3><span class="chip warn mono">${l.length}</span></div><p class="mute small" style="margin:0 0 6px">Open your GPay or PhonePe Business app. Tap Received only if that exact amount arrived. The student gets their token after you confirm.</p>${l.map(o=>`<div class="pc"><div class="pc-b"><div class="pc-amt mono">${rsp(upiAmt(o))}</div><div class="mute small"><span class="mono">${esc(o.roll)}</span>, ${fmt(o.at)}, ${itemsText(o)}</div></div><div class="pc-a"><button class="btn sm ok" onclick="confirmPay(${o.id},'ok')">Received</button><button class="btn sm ghost" onclick="confirmPay(${o.id},'no')">Not received</button></div></div>`).join('')}</div>`;
+  return `<div class="card pad paycheck"><div class="sec-h"><h3>Have they paid?</h3><span class="chip warn mono">${l.length}</span></div><p class="mute small" style="margin:0 0 6px">Check that this exact amount reached your QR account. Tap Yes and the student gets their token. Tap No and the order is cancelled.</p>${l.map(o=>`<div class="pc"><div class="pc-b"><div class="pc-amt mono">${o.bill?'Bill '+o.bill+', ':''}${rsp(upiAmt(o))}</div><div class="mute small">${esc(o.roll)}${o.phone?', '+esc(o.phone):''}, ${fmt(o.at)}</div><div class="mute small">${o.items.map(i=>i.q+' x '+esc(i.n)+' '+rs(i.p*i.q)).join(', ')}</div></div><div class="pc-a"><button class="btn sm ok" onclick="confirmPay(${o.id},'ok')">Yes</button><button class="btn sm ghost" onclick="confirmPay(${o.id},'no')">No</button></div></div>`).join('')}</div>`;
 }
 function waitCard(){
   const w=liveOf(S.auth).filter(o=>isActive(o)&&(o.hold||isPart(o))).sort((a,b)=>a.id-b.id);
@@ -3764,7 +3834,7 @@ function counterView(){
 }
 function kcard(o){
   const held=o.status==='placed'&&o.pay==='cash'&&!o.coming&&!o.hold;
-  if(checking(o))return `<div class="kc"><div class="kc-t"><span class="mono">${o.token}</span><span class="chip warn">Check GPay ${rsp(upiAmt(o))}</span></div><div class="kc-i">${o.items.map(i=>`<div><b>${i.q}</b>${esc(i.n)}</div>`).join('')}</div><div class="kc-f"><span class="mono">${esc(o.roll)}</span><span style="display:flex;gap:6px"><button class="btn sm ghost" onclick="confirmPay(${o.id},'no')">Not received</button><button class="btn sm ok" onclick="confirmPay(${o.id},'ok')">Received</button></span></div></div>`;
+  if(checking(o))return `<div class="kc"><div class="kc-t"><span class="mono">${o.token||'Bill '+o.bill}</span><span class="chip warn">Paid? ${rsp(upiAmt(o))}</span></div><div class="kc-i">${o.items.map(i=>`<div><b>${i.q}</b>${esc(i.n)}</div>`).join('')}</div><div class="kc-f"><span class="mono">${esc(o.roll)}</span><span style="display:flex;gap:6px"><button class="btn sm ghost" onclick="confirmPay(${o.id},'no')">No</button><button class="btn sm ok" onclick="confirmPay(${o.id},'ok')">Yes</button></span></div></div>`;
   const hb=o.hold||held?'':`<button class="btn sm ghost" onclick="holdOrder(${o.id},true)">Hold</button>`;
   const main=o.hold?`<button class="btn sm" onclick="advance(${o.id},'ready')">Mark ready</button>`:o.status==='placed'?(held?'<span class="mute small">Waiting for student</span>':`<button class="btn sm" onclick="advance(${o.id},'cooking')">Start cooking</button>`):o.status==='cooking'?`<button class="btn sm" onclick="advance(${o.id},'ready')">Mark ready</button>`:`<button class="btn sm ok" onclick="loadToken('${o.token}')">Hand over</button>`;
   const btn=`<span style="display:flex;gap:6px">${hb}${main}</span>`;
@@ -3781,7 +3851,7 @@ function kitchenView(){
   return `${kpis()}<div class="card pad"><div class="sec-h"><h3>To cook now</h3><span class="mute small">${held?plural(held,'cash order')+' held until the student taps I\'m coming':''}</span></div>
   ${Object.keys(agg).length?`<div class="agg">${Object.entries(agg).sort((a,b)=>b[1]-a[1]).map(([n,q])=>`<span><b>${q}</b>${esc(n)}</span>`).join('')}</div>`:'<p class="mute small" style="margin:0">Nothing to cook right now.</p>'}</div>
   <div class="board">${col('placed','New')}${col('cooking','Cooking')}${col('ready','Ready')}${col('hold','On hold')}</div>
-  ${done.length?`<h2 class="h2">Finished today</h2><div class="card tblwrap"><table class="tbl"><thead><tr><th>Token</th><th>Student</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>${done.map(o=>`<tr><td class="mono" style="color:var(--hi)">${o.token}</td><td class="mono">${esc(o.roll)}</td><td>${itemsText(o)}</td><td class="mono">${rs(o.total)}</td><td>${o.ps==='no'?'GPay not received':o.pay==='upi'?'GPay':'Cash'}</td><td>${stChip(o)}</td></tr>`).join('')}</tbody></table></div>`:''}`;
+  ${done.length?`<h2 class="h2">Finished today</h2><div class="card tblwrap"><table class="tbl"><thead><tr><th>Token</th><th>Student</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>${done.map(o=>`<tr><td class="mono" style="color:var(--hi)">${o.token||'Bill '+o.bill}</td><td class="mono">${esc(o.roll)}</td><td>${itemsText(o)}</td><td class="mono">${rs(o.total)}</td><td>${o.ps==='no'?'Not paid':o.pay==='upi'?'QR':'Cash'}</td><td>${stChip(o)}</td></tr>`).join('')}</tbody></table></div>`:''}`;
 }
 function shopMenuView(){
   const s=shopOf(S.auth),st=S.shops[S.auth],sp=itemOf(s,st.special);
@@ -4296,8 +4366,8 @@ addEventListener('scroll',()=>tipEl.style.opacity=0,{passive:true});
 if(USE_PHP){
   phpClock();
   if(MODE==='student'&&getTok()&&S.role==='admin'&&!S.roll)location.replace('shop.html');
-  else phpRestore();
-  setInterval(()=>{if(document.hidden)return;if(phpClock())softRender();phpSync()},MODE==='shop'?3000:5000);
+  else{phpRestore();autoSignIn()}
+  setInterval(()=>{if(document.hidden)return;if(phpClock()&&!ui.lg)softRender();phpSync()},MODE==='shop'?3000:5000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){phpClock();phpSync()}});
 }
 render();
