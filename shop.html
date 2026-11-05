@@ -2925,7 +2925,7 @@ const PILLS = [['#0D4C3C','#F4F1EB'],['#7BA05B','#082F25']];
 
 // Menu rows are [name, price, veg, bestseller]
 const SHOPS = [
- {id:'s1',n:1,ini:'T',name:'Tasty Time',short:'Tasty Time',tag:'Meals, biryani, fresh juices, sandwiches and snacks',upi:'tastytime@okaxis',special:'Chicken biryani',menu:[
+ {id:'s1',n:1,ini:'T',name:'Tasty Time',short:'Tasty Time',tag:'Meals, biryani, fresh juices, sandwiches and snacks',upi:'9363982003@ibl',upiName:'GOKULAKRISHNAN R',special:'Chicken biryani',menu:[
   ['Meals',[['Veg meals',70,1,1],['Mini meals',55,1],['Curd rice',45,1],['Lemon rice',45,1],['Tomato rice',45,1]]],
   ['Biryani',[['Chicken biryani',120,0,1],['Egg biryani',90,0],['Veg biryani',85,1]]],
   ['Chapati and parotta',[['Chapati with kurma (2)',50,1],['Parotta with salna (2)',50,1],['Chicken gravy',40,0]]],
@@ -2933,7 +2933,7 @@ const SHOPS = [
   ['Fresh juices',[['Watermelon juice',40,1,1],['Sweet lime juice',50,1],['Pineapple juice',50,1],['Orange juice',50,1],['ABC juice',60,1]]],
   ['Shakes and hot drinks',[['Mango shake',60,1],['Oreo shake',70,1],['Tea',10,1,1],['Coffee',15,1]]],
   ['Sandwiches',[['Veg sandwich',45,1],['Grilled cheese sandwich',60,1],['Paneer tikka sandwich',75,1],['Chicken sandwich',80,0]]]]},
- {id:'s2',n:2,ini:'C',name:'Campus Kitchen',short:'Campus Kitchen',tag:'South Indian meals, rice bowls, fried rice and desserts',upi:'campuskitchen@okhdfc',special:'South Indian thali',menu:[
+ {id:'s2',n:2,ini:'C',name:'Campus Kitchen',short:'Campus Kitchen',tag:'South Indian meals, rice bowls, fried rice and desserts',upi:'9363982003@ibl',upiName:'GOKULAKRISHNAN R',special:'South Indian thali',menu:[
   ['Meals',[['South Indian thali',80,1,1],['Sambar rice',45,1],['Rasam rice',40,1],['Curd rice',45,1],['Bisi bele bath',50,1]]],
   ['Rice bowls',[['Paneer rice bowl',90,1,1],['Rajma rice',70,1],['Chole rice',70,1],['Dal khichdi',60,1]]],
   ['Fried rice and noodles',[['Veg fried rice',70,1],['Egg fried rice',80,0,1],['Chicken fried rice',100,0],['Gobi fried rice',80,1],['Veg noodles',70,1],['Egg noodles',80,0]]],
@@ -2973,7 +2973,7 @@ function heal(s){
   SHOPS.forEach(x=>{const d=f.shops[x.id],c=s.shops[x.id];
     if(!isObj(c)){s.shops[x.id]=d;return}
     if(!isObj(c.sold))c.sold={};
-    if(typeof c.upi!=='string')c.upi=d.upi;
+    if(typeof c.upi!=='string'||USE_PHP)c.upi=d.upi;   // live: payment always goes to the ID in this file, never one saved on a device
     if(!isNum(c.cap))c.cap=d.cap;
     if(typeof c.open!=='boolean')c.open=d.open;
     if(typeof c.special!=='string')c.special=d.special});
@@ -3121,9 +3121,19 @@ async function phpSync(){
     if(r.s===200&&Array.isArray(r.j.orders)){
       const list=r.j.orders.map(x=>mapOrder(x,shopSide)).filter(okOrder),sig=JSON.stringify(list);
       if(shopSide&&(r.j.preChecks||0)!==(ui.preChecks||0)){ui.preChecks=r.j.preChecks||0;softRender()}
+      const was=shopSide?[]:S.orders.filter(checking).map(o=>o.id),moved=list.find(o=>was.includes(o.id)&&(o.ps==='ok'||o.ps==='no'));
       if(sig!==syncSig){syncSig=sig;S.orders=(shopSide?S.orders.filter(o=>o.shop!==S.auth):[]).concat(list);save();softRender()}
+      if(moved)payMoved(moved);
     }
   }finally{syncBusy=false}
+}
+// The shop answered: take the student to their order and tell them plainly.
+function payMoved(o){
+  if(ui.sheet&&ui.sheet.type==='pay')return;
+  const ok=o.ps==='ok',s=shopOf(o.shop),h='order-'+o.id,show=()=>{ui.sheet={type:'done',ok,token:o.token,
+    line:ok?`${s.name} confirmed ${rsp(upiAmt(o))}.`:`${s.name} did not get ${rsp(upiAmt(o))}, so this order was cancelled.`,
+    sub:ok?(o.day>S.day?'Preorder for tomorrow. Say this token at the counter tomorrow.':'Say this token at the counter to collect your food.'):'If money left your account, show the shop your payment.'};render()};
+  if(location.hash.slice(1)===h)show();else{location.hash=h;setTimeout(show,120)}
 }
 function upsertLocal(o){const i=S.orders.findIndex(x=>x.id===o.id);if(i>=0)S.orders[i]=o;else S.orders.push(o);save()}
 async function phpCreateOrder(sid,paid){
@@ -3251,18 +3261,18 @@ const whenOf=sid=>ui.when&&ui.when[sid]||(ordering()?'today':'tomorrow');
 const canCancel=o=>o.day>S.day?S.now<=PRE_CUTOFF:(S.now<=CANCEL_UNTIL&&o.day===S.day);
 function pickWhen(sid,w){(ui.when||(ui.when={}))[sid]=w;render()}
 function whyClosed(sid){const st=S.shops[sid];if(!ordering())return 'Ordering closed at '+fmt(CUTOFF);if(!st.open)return 'Not taking orders right now';if(usedToday(sid)>=st.cap)return 'Full for today';return ''}
-// GPay payment check: a web page cannot see a UPI payment, so the shop confirms it.
+// UPI payment check: a web page cannot see a UPI payment, so the shop confirms it.
 // ps: 'check' = student says paid, shop has not confirmed yet. Missing or 'ok' = confirmed.
 const checking = o => o.pay==='upi'&&o.ps==='check';
 const rsp = n => 'Rs '+Number(n).toFixed(2);
 const upiAmt = o => o.upiAmt||o.total;
-const payChip = o => checking(o)?'<span class="chip warn">Checking GPay</span>':o.pay==='upi'?'<span class="chip ok">Paid by GPay</span>':`<span class="chip warn">Pay ${rs(o.total)} at counter</span>`;
+const payChip = o => checking(o)?'<span class="chip warn">Checking UPI</span>':o.pay==='upi'?'<span class="chip ok">Paid by UPI</span>':`<span class="chip warn">Pay ${rs(o.total)} at counter</span>`;
 const toCheck = sid => liveOf(sid).filter(o=>isActive(o)&&checking(o)).sort((a,b)=>a.id-b.id);
-// Unique paise per waiting payment so the shop can match each GPay credit to one order.
+// Unique paise per waiting payment so the shop can match each UPI credit to one order.
 function payPaise(sid){const used=new Set(toCheck(sid).map(o=>Math.round((upiAmt(o)-o.total)*100)));let p;do{p=1+Math.floor(Math.random()*99)}while(used.has(p)&&used.size<99);return p}
 function stChip(o){if(checking(o)&&isActive(o))return '<span class="chip warn">Checking payment</span>';if(o.ps==='no'&&o.status==='cancelled')return '<span class="chip bad">Payment not received</span>';const x=(o.hold&&isActive(o)?'<span class="chip warn">On hold</span>':'')+(isPart(o)?'<span class="chip warn">Partly collected</span>':'');if(x)return x;const m={placed:['','Placed'],cooking:['','Cooking'],ready:['ok','Ready'],collected:['light','Collected'],cancelled:['line','Cancelled'],expired:['bad','Not collected']}[o.status];return `<span class="chip ${m[0]}">${m[1]}</span>`}
 function statusText(o){
-  if(checking(o))return 'Shop is checking your GPay payment';
+  if(checking(o))return 'Shop is checking your UPI payment';
   if(o.hold)return 'On hold, the rest is still being prepared';
   if(isPart(o))return 'Partly collected, '+plural(leftOf(o),'item')+' still to collect';
   if(o.status==='placed')return o.pay==='cash'&&!o.coming?'Held until you tap I\'m coming':o.coming?'On the way. Shop is getting it ready':'Order received';
@@ -3542,9 +3552,10 @@ function handOver(id){
   save();emit({t:'give',id:o.id,d:o.items.map(dOf),paid:o.cashPaid||0,at:S.now});
   delete ui.give[o.id];ui.pad='';ui.found=full?{done:o.token}:{part:o.id,t:o.token};render()
 }
+function paidDone(m){ui.sheet={type:'done',ok:true,token:m.token,line:`${m.bill?'Bill '+m.bill+', ':''}${rsp(upiAmt(m))} from ${esc(m.roll)}`,sub:'The student has been told and can see this token now.'}}
 function confirmPay(id,v){
   const o=getO(id);if(!o||!checking(o))return;
-  if(USE_PHP){if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}phpShopAct(id,'pay',{v},v==='ok'?m=>'Payment verified. Bill '+m.bill+' gets token '+m.token+'.':'Marked as not paid. The student has been told.');return}
+  if(USE_PHP){if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}phpShopAct(id,'pay',{v},v==='ok'?m=>{paidDone(m);return ''}:'Marked as not paid. The student has been told.');return}
   o.ps=v;o.payAt=S.now;if(v==='ok')o.paid=true;else o.status='cancelled';
   save();emit({t:'pay',id:o.id,v,at:S.now});
   if(ui.found&&ui.found.o===o.id){ui.pad='';ui.found=null}
@@ -3627,7 +3638,7 @@ function studentLogin(){
    <h1 class="display">Lunch, without<br>the queue.</h1>
    <p class="lead">Order from your classroom. Walk to the counter, say your 4 digit token and collect in about <b>two minutes</b>.</p>
    <div class="signin">${loginForm()}</div>
-   <div class="steps"><div><span class="mono">01</span>Order by ${fmt(CUTOFF)}</div><div><span class="mono">02</span>GPay or pay at the counter</div><div><span class="mono">03</span>Say your token, collect</div></div>
+   <div class="steps"><div><span class="mono">01</span>Order by ${fmt(CUTOFF)}</div><div><span class="mono">02</span>UPI or pay at the counter</div><div><span class="mono">03</span>Say your token, collect</div></div>
   </div>
   <div><div class="stack">${SHOPS.map((s,i)=>{const sp=itemOf(s,S.shops[s.id].special);return `<div class="pillx" style="background:${PILLS[i][0]};color:${PILLS[i][1]};z-index:${i+1};animation-delay:${(.12+i*.09).toFixed(2)}s"><div><b>${s.name}</b><span>${esc(sp.name)}</span></div><em>${rs(sp.price)}</em></div>`}).join('')}</div>
   <p class="stack-cap">Tasty Time and Campus Kitchen. Today's specials, live.</p></div>
@@ -3646,7 +3657,7 @@ function home(){
   <h1 class="display">What's for lunch<br>today?</h1>
   <p class="lead">${open?`Order by <b>${fmt(CUTOFF)}</b>. Collect any time from ${fmt(LUNCH_START)} to ${fmt(LUNCH_END)}.`:act.some(o=>o.day===S.day||isPart(o))?`Collect your order any time till <b>${fmt(LUNCH_END)}</b>.`:USE_PHP&&S.now<=PRE_CUTOFF?`You can preorder for tomorrow till <b>${fmt(PRE_CUTOFF)}</b>.`:'Ordering opens again tomorrow morning. You can still browse the menus.'}</p>
   ${daybar()}</section>
-  ${act.length?`<section><div class="sec-h"><h2>Your ${act.length>1?'tokens':'token'}</h2></div><div class="tokens">${act.map(o=>{const s=shopOf(o.shop);return `<a class="live-card" href="#order-${o.id}"><div><div class="lc-top">${s.name}</div><div class="lc-token mono">${checking(o)?'····':o.token}</div><div class="lc-sub">${o.day>S.day?'Preorder for tomorrow. ':''}${statusText(o)}</div></div><div class="lc-right"><span class="chip dk">${checking(o)?'Checking GPay':o.pay==='upi'?'Paid by GPay':'Pay '+rs(o.total-(o.cashPaid||0))+' at counter'}</span><span class="lc-go">Open ${ICON.chev}</span></div></a>`}).join('')}</div></section>`:''}
+  ${act.length?`<section><div class="sec-h"><h2>Your ${act.length>1?'tokens':'token'}</h2></div><div class="tokens">${act.map(o=>{const s=shopOf(o.shop);return `<a class="live-card" href="#order-${o.id}"><div><div class="lc-top">${s.name}</div><div class="lc-token mono">${checking(o)?'····':o.token}</div><div class="lc-sub">${o.day>S.day?'Preorder for tomorrow. ':''}${statusText(o)}</div></div><div class="lc-right"><span class="chip dk">${checking(o)?'Checking UPI':o.pay==='upi'?'Paid by UPI':'Pay '+rs(o.total-(o.cashPaid||0))+' at counter'}</span><span class="lc-go">Open ${ICON.chev}</span></div></a>`}).join('')}</div></section>`:''}
   <section><div class="sec-h"><h2>Shops</h2><span class="mute small">Tasty Time and Campus Kitchen</span></div><div class="shops">${SHOPS.map(shopCard).join('')}</div></section>
   ${footer()}</main>`;
 }
@@ -3672,7 +3683,7 @@ function cartAside(s){
   return `<div class="card pad"><div class="sec-h" style="margin-bottom:4px"><h3>${s.name} cart</h3><span class="mute small">${n?plural(n,'item'):''}</span></div>
   ${lines.length?`<div class="mini">${lines.map(l=>`<div class="mini-r"><div class="mini-n">${veg(l)}<span>${esc(l.name)}</span></div>${control(s,l,true,true)}<span class="mono mini-p">${rs(l.price*l.qty)}</span></div>`).join('')}</div>
   <div class="row tot"><span>Total</span><span class="mono">${rs(cartTotal(s.id))}</span></div>
-  <button class="btn lg" onclick="go('cart-${s.id}')">Checkout</button><p class="fine center">Pay by GPay or at the counter on the next step.</p>`
+  <button class="btn lg" onclick="go('cart-${s.id}')">Checkout</button><p class="fine center">Pay by UPI or at the counter on the next step.</p>`
   :`<p class="mute small" style="margin:6px 0 0">Add items from the menu. Each shop keeps its own cart and its own payment.</p>`}</div>`;
 }
 function menuPage(sid){
@@ -3681,7 +3692,7 @@ function menuPage(sid){
   return `<main class="page"><button class="backlink" onclick="back('')">${ICON.back} All shops</button>
   <div class="menu-wrap"><div>
   <section class="shop-hero" style="margin-top:20px">${tile(s,'xl')}<div><h1 class="h1 big">${s.name}</h1><p class="lead sm">${s.tag}</p>
-  <div class="meta"><span class="chip line">GPay to ${s.name}</span><span class="chip line">Pay at counter</span><span class="chip line">Collect till ${fmt(LUNCH_END)}</span></div></div></section>
+  <div class="meta"><span class="chip line">UPI to ${s.name}</span><span class="chip line">Pay at counter</span><span class="chip line">Collect till ${fmt(LUNCH_END)}</span></div></div></section>
   ${why?`<div class="banner">${why}. ${can?'You can still preorder for tomorrow.':'You can still browse the menu.'}</div>`:''}
   <div class="special"><div><div class="lbl">Today's special</div><div class="sp-n">${veg(sp)}${esc(sp.name)}</div><div class="sp-p">${rs(sp.price)}</div></div>${control(s,sp,can)}</div>
   <div class="tools">${ICON.search}<input class="input search" placeholder="Search the ${s.name} menu" value="${esc(ui.q)}" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" oninput="filterMenu(this.value)" onkeydown="if(event.key==='Enter')this.blur()"></div>
@@ -3712,12 +3723,12 @@ function cartPage(sid){
   </div>`:''}
   ${pre?'':`<h2 class="h2">How do you want to pay?</h2>
   <div class="opts">
-   <button class="opt ${m==='upi'?'on':''}" onclick="pickPay('${sid}','upi')"><span class="radio"></span><span class="opt-b"><b>GPay to ${s.name}</b><span>Paid straight to <span class="mono" style="display:inline;color:var(--text)">${esc(st.upi)}</span>. Your token shows PAID at the counter. Cancel till ${fmt(CANCEL_UNTIL)} for a full refund.</span></span></button>
-   <button class="opt ${m==='cash'?'on':''}" ${blocked?'disabled':''} onclick="pickPay('${sid}','cash')"><span class="radio"></span><span class="opt-b"><b>Pay at the counter</b><span>${blocked?`Paused for you after ${STRIKE_LIMIT} uncollected cash orders. Please use GPay.`:`Pay cash when you collect. ${s.name} starts cooking when you tap I'm coming. Not collected by ${fmt(LUNCH_END)} counts as a no show.`}</span></span></button>
+   <button class="opt ${m==='upi'?'on':''}" onclick="pickPay('${sid}','upi')"><span class="radio"></span><span class="opt-b"><b>UPI to ${s.name}</b><span>Paid straight to <span class="mono" style="display:inline;color:var(--text)">${esc(upiShow(s))}</span>. Your token shows PAID at the counter. Cancel till ${fmt(CANCEL_UNTIL)} for a full refund.</span></span></button>
+   <button class="opt ${m==='cash'?'on':''}" ${blocked?'disabled':''} onclick="pickPay('${sid}','cash')"><span class="radio"></span><span class="opt-b"><b>Pay at the counter</b><span>${blocked?`Paused for you after ${STRIKE_LIMIT} uncollected cash orders. Please use UPI.`:`Pay cash when you collect. ${s.name} starts cooking when you tap I'm coming. Not collected by ${fmt(LUNCH_END)} counts as a no show.`}</span></span></button>
   </div>`}
   <div class="card pad sum"><div class="row"><span>Items</span><span class="mono">${cartCount(sid)}</span></div><div class="row tot"><span>Total</span><span class="mono">${rs(total)}</span></div>
   ${why?`<div class="banner">${why}</div>`:''}
-  <button class="btn lg" ${why?'disabled':''} onclick="placeOrder('${sid}')">${pre?'Preorder, pay '+rs(total)+' by QR':m==='upi'?'Pay '+rs(total)+' with GPay':'Place order, pay at counter'}</button></div>
+  <button class="btn lg" ${why?'disabled':''} onclick="placeOrder('${sid}')">${pre?'Preorder, pay '+rs(total)+' by QR':m==='upi'?'Pay '+rs(total)+' with UPI':'Place order, pay at counter'}</button></div>
   ${otherHtml}</main>`;
 }
 
@@ -3725,10 +3736,10 @@ function orderPage(id){
   const o=getO(id);
   if(!o||o.roll!==S.roll)return `<main class="page narrow"><div class="card empty" style="margin-top:40px">Order not found.<br><a class="btn" href="#" style="margin-top:18px">Go home</a></div></main>`;
   const s=shopOf(o.shop),a=isActive(o);
-  const fin={collected:'Collected. This token has been used.',cancelled:o.ps==='no'?`Payment not received. ${s.name} did not get ${rsp(upiAmt(o))} in their GPay, so this order was cancelled. If money left your account, show that payment in your UPI app at the ${s.name} counter.`:o.paid?'Cancelled. Full refund sent to your GPay.':o.pay==='upi'?`Cancelled. If you had already paid, ${s.name} sends it back to your GPay.`:'Cancelled.',expired:checking(o)?'Lunch ended before the payment was confirmed.':o.pay==='cash'?'Not collected before lunch ended. Counted as a no show.':'Not collected before lunch ended. The plate was sold at the counter, no refund.'}[o.status];
+  const fin={collected:'Collected. This token has been used.',cancelled:o.ps==='no'?`Payment not received. ${s.name} did not get ${rsp(upiAmt(o))} in their UPI, so this order was cancelled. If money left your account, show that payment in your UPI app at the ${s.name} counter.`:o.paid?`Cancelled. ${s.name} will return your money.`:o.pay==='upi'?`Cancelled. If you had already paid, ${s.name} sends it back to your UPI.`:'Cancelled.',expired:checking(o)?'Lunch ended before the payment was confirmed.':o.pay==='cash'?'Not collected before lunch ended. Counted as a no show.':'Not collected before lunch ended. The plate was sold at the counter, no refund.'}[o.status];
   let act='';
   if(a&&checking(o)){
-    act+=`<div class="note warn"><b>Waiting for ${s.name} to confirm your payment.</b><br>They are checking that ${rsp(upiAmt(o))} reached their GPay. Your token appears here the moment they confirm. This page updates by itself.</div>`;
+    act+=`<div class="note warn"><b>Waiting for ${s.name} to confirm your payment.</b><br>They are checking that ${rsp(upiAmt(o))} reached their UPI. Your token appears here the moment they confirm. This page updates by itself.</div>`;
     if(canCancel(o))act+=`<button class="btn ghost lg" onclick="cancelOrder(${o.id})">Cancel order</button>`;
   }else if(a){
     if(o.day>S.day)act+=`<div class="note ok">Preorder for tomorrow. Collect it at ${s.name} tomorrow any time till ${fmt(LUNCH_END)}.</div>`;
@@ -3744,7 +3755,7 @@ function orderPage(id){
   const idx={placed:0,cooking:1,ready:2,collected:3}[o.status];
   const held=o.status==='placed'&&o.pay==='cash'&&!o.coming;
   return `<main class="page narrow"><button class="backlink" onclick="back('')">${ICON.back} Home</button>
-  <div class="tk ${a?'':'off'}"><div class="tk-top">${tile(s)}<div><b>${s.name}</b><div class="small">${o.bill?'Bill '+o.bill+', ':''}${o.day>S.day?'Preorder for tomorrow':(o.pre?'Preorder, ':'')+dayLabel(o.day)+' at '+fmt(o.at)}</div></div>${a?`<span class="chip dk">${checking(o)?'Checking GPay':o.pay==='upi'?'Paid by GPay':'Pay '+rs(o.total)+' at counter'}</span>`:stChip(o)}</div>
+  <div class="tk ${a?'':'off'}"><div class="tk-top">${tile(s)}<div><b>${s.name}</b><div class="small">${o.bill?'Bill '+o.bill+', ':''}${o.day>S.day?'Preorder for tomorrow':(o.pre?'Preorder, ':'')+dayLabel(o.day)+' at '+fmt(o.at)}</div></div>${a?`<span class="chip dk">${checking(o)?'Checking UPI':o.pay==='upi'?'Paid by UPI':'Pay '+rs(o.total)+' at counter'}</span>`:stChip(o)}</div>
   <div class="tk-lbl">${a?'Your token':'Token'}</div><div class="tk-num">${checking(o)||o.ps==='no'?'····':o.token}</div>
   <div class="tk-sub">${a&&checking(o)?`Your token shows here once ${s.name} confirms your payment of ${rsp(upiAmt(o))}.`:a?(o.pay==='upi'&&!isPart(o)&&!o.hold?`Payment verified. This is your token to collect your order. Say it at the ${s.name} counter. Collect any time till ${fmt(LUNCH_END)}, handed over in about 2 minutes.`:isPart(o)?`Say this number again at the ${s.name} counter for the rest. This token stays open till every item is collected.`:`Say this number at the ${s.name} counter. Collect any time till ${fmt(LUNCH_END)}, handed over in about 2 minutes.`):fin}</div></div>
   ${act}
@@ -3757,13 +3768,14 @@ function ordersPage(){
   const mine=S.orders.filter(o=>o.roll===S.roll).sort((a,b)=>b.id-a.id);
   const spent=mine.filter(o=>o.status==='collected').reduce((a,o)=>a+o.total,0);
   const days=[...new Set(mine.map(o=>o.day))].sort((a,b)=>b-a);
-  const row=o=>{const s=shopOf(o.shop),a=isActive(o);return `<div class="orow">${tile(s)}<div class="orow-b"><a href="#order-${o.id}"><div class="orow-t"><b>${s.name}</b>${a?`<span class="mono small">${checking(o)?'Checking GPay':'Token '+o.token}</span>`:''}<span class="tot">${rs(o.total)}</span></div><div class="mute small clamp" style="margin-top:2px">${itemsText(o)}</div></a><div class="orow-m">${stChip(o)}<span class="mute small">${fmt(o.at)}, ${o.pay==='upi'?'GPay':'Cash'}</span>${a?`<a class="btn sm" href="#order-${o.id}">View token</a>`:`<button class="btn sm ghost" onclick="orderAgain(${o.id})">Order again</button>`}</div></div></div>`};
+  const row=o=>{const s=shopOf(o.shop),a=isActive(o);return `<div class="orow">${tile(s)}<div class="orow-b"><a href="#order-${o.id}"><div class="orow-t"><b>${s.name}</b>${a?`<span class="mono small">${checking(o)?'Checking UPI':'Token '+o.token}</span>`:''}<span class="tot">${rs(o.total)}</span></div><div class="mute small clamp" style="margin-top:2px">${itemsText(o)}</div></a><div class="orow-m">${stChip(o)}<span class="mute small">${fmt(o.at)}, ${o.pay==='upi'?'UPI':'Cash'}</span>${a?`<a class="btn sm" href="#order-${o.id}">View token</a>`:`<button class="btn sm ghost" onclick="orderAgain(${o.id})">Order again</button>`}</div></div></div>`};
   return `<main class="page mid"><section class="hero" style="padding-bottom:0"><p class="eyebrow">Signed in as ${esc(who())}</p><h1 class="display" style="font-size:clamp(36px,5vw,52px)">My orders</h1>
   <p class="lead sm">${plural(mine.length,'order')}, ${rs(spent)} collected so far</p></section>
   ${mine.length?days.map(d=>`<section style="margin-top:36px"><div class="sec-h"><h2>${dayLabel(d)}</h2></div><div class="olist">${mine.filter(o=>o.day===d).map(row).join('')}</div></section>`).join(''):`<div class="card empty" style="margin-top:28px">No orders yet.<br><a class="btn" href="#" style="margin-top:18px">Pick a shop</a></div>`}</main>`;
 }
 
-function upiLink(s,amt,roll){return 'upi://pay?pa='+encodeURIComponent(S.shops[s.id].upi).replace('%40','@')+'&pn='+encodeURIComponent(s.name)+'&am='+Number(amt).toFixed(2)+'&cu=INR&tn='+encodeURIComponent('KPR Lunch '+(roll||''))}
+const upiShow=s=>USE_PHP&&s.upiName?s.upiName:S.shops[s.id].upi;
+function upiLink(s,amt,roll){return 'upi://pay?pa='+encodeURIComponent(S.shops[s.id].upi).replace('%40','@')+'&pn='+encodeURIComponent(s.upiName||s.name)+'&mc=0000&mode=02&purpose=00&am='+Number(amt).toFixed(2)+'&cu=INR&tn='+encodeURIComponent('KPR Lunch '+(roll||''))}
 function upiQr(str){try{const q=qrcode(0,'M');q.addData(str);q.make();return q.createSvgTag({cellSize:4,margin:0,scalable:true})}catch(e){return ''}}
 
 function sheetHtml(){
@@ -3772,11 +3784,17 @@ function sheetHtml(){
   if(ui.sheet.type==='pay'){
     const s=shopOf(ui.sheet.sid),base=cartTotal(s.id),amt=Math.round(base*100+(ui.sheet.paise||0))/100,n=cartCount(s.id);
     body=`<div class="sheet-h"><b>Pay ${s.name}</b><button class="x" onclick="closeSheet()">Close</button></div>
-    <div class="payto">${tile(s,'lg')}<div><div class="mute small">Paying to</div><b>${s.name}</b><div class="mono small mute">${esc(S.shops[s.id].upi)}</div></div></div>
+    <div class="payto">${tile(s,'lg')}<div><div class="mute small">Paying to</div><b>${s.name}</b><div class="mono small mute">${esc(upiShow(s))}</div></div></div>
     <div class="amt">${rsp(amt)}</div>${ui.sheet.pre?'<p class="center small" style="margin:0 0 4px"><b>Preorder for tomorrow</b></p>':''}<p class="center mute small" style="margin:0">${plural(n,'item')} from ${s.name}, ${rs(base)} plus ${ui.sheet.paise||0} paise so ${s.name} can match your payment</p>
-    <div class="qrbox"><div class="qr">${upiQr(upiLink(s,amt,S.roll))}</div><div class="mute small center">Scan with GPay or any UPI app. Pay exactly ${rsp(amt)}.</div><a class="btn lg ghost upi-open" href="${esc(upiLink(s,amt,S.roll))}">Open GPay on this phone</a></div>
+    <div class="qrbox"><div class="qr">${upiQr(upiLink(s,amt,S.roll))}</div><div class="mute small center">Scan with any UPI app. Pay exactly ${rsp(amt)}.</div><a class="btn lg ghost upi-open" href="${esc(upiLink(s,amt,S.roll))}">Open UPI app on this phone</a></div>
     <button class="btn lg ok" onclick="createOrder('${s.id}',true)">I have paid ${rsp(amt)}</button>
-    <p class="fine center">${s.name} checks that ${rsp(amt)} reached their GPay, then your token goes live. Screenshots are not accepted at the counter. Demo: the UPI ID is a placeholder, do not pay it.</p>`;
+    <p class="fine center">${s.name} checks that ${rsp(amt)} reached their UPI, then your token goes live. Screenshots are not accepted at the counter.${USE_PHP?'':' Demo: the UPI ID is a placeholder, do not pay it.'}</p>`;
+  }else if(ui.sheet.type==='done'){
+    const d=ui.sheet;
+    body=`<div class="sheet-h"><b>${d.ok?'Payment received':'Payment not received'}</b><button class="x" onclick="closeSheet()">Close</button></div>
+    ${d.ok?`<div class="center mute small" style="margin-top:20px">Token</div><div class="amt" style="margin-top:2px">${esc(d.token)}</div>`:''}
+    <p class="center" style="margin:12px 0 4px">${d.line}</p><p class="fine center">${d.sub}</p>
+    <button class="btn lg ok" onclick="closeSheet()">Done</button>`;
   }else if(ui.sheet.type==='receipt'){
     body=receiptSheet();
   }else{
@@ -3787,7 +3805,7 @@ function sheetHtml(){
     <div class="acc"><div class="lbl" style="margin:0">Gmail</div><div class="acc-r">${esc(S.email)}</div></div>
     <div class="kv"><span>Orders placed</span><b class="mono">${n}</b></div>
     <div class="kv"><span>Uncollected cash orders</span><b class="mono ${k?'bad':''}">${k}</b></div>
-    <p class="fine">${k>=STRIKE_LIMIT?'Pay at counter is paused for you. GPay orders work as usual.':`Pay at counter pauses after ${STRIKE_LIMIT} uncollected cash orders.`}</p>
+    <p class="fine">${k>=STRIKE_LIMIT?'Pay at counter is paused for you. UPI orders work as usual.':`Pay at counter pauses after ${STRIKE_LIMIT} uncollected cash orders.`}</p>
     <button class="btn ghost lg" onclick="ui.sheet=null;go('orders')">See my orders</button>
     <button class="btn ghost lg" style="margin-top:8px" onclick="logout()">Sign out</button>`;
   }
@@ -3803,7 +3821,7 @@ function shopPick(){
 }
 function kpis(){
   const t=liveOf(S.auth),act=t.filter(isActive),col=t.filter(o=>o.status==='collected');
-  return `<div class="kpis"><div class="kpi"><span>Active orders</span><b>${act.length}</b></div><div class="kpi"><span>GPay to check</span><b>${act.filter(checking).length}</b></div>
+  return `<div class="kpis"><div class="kpi"><span>Active orders</span><b>${act.length}</b></div><div class="kpi"><span>UPI to check</span><b>${act.filter(checking).length}</b></div>
   <div class="kpi"><span>Cash to collect</span><b>${rs(act.filter(o=>o.pay==='cash').reduce((a,o)=>a+o.total-(o.cashPaid||0),0))}</b></div>
   <div class="kpi"><span>Handed over</span><b>${col.length}</b><small>${rs(col.reduce((a,o)=>a+o.total,0))} today</small></div></div>`;
 }
@@ -3818,11 +3836,11 @@ function resultHtml(){
   if(o.status==='collected')return bad('Already used','Token '+o.token+' was fully handed over at '+fmt(o.doneAt)+'.');
   if(o.status==='cancelled')return bad('Cancelled','The student cancelled this order'+(o.paid?' and was refunded':'')+'.');
   if(o.status==='expired')return bad('Expired','Lunch ended before this order was collected.');
-  if(checking(o))return `<div class="result cash"><div class="r-lbl">Token ${o.token}, ${esc(o.roll)}</div><div class="r-big">GPay NOT CONFIRMED</div><p style="margin:0 0 16px">Open your GPay and look for exactly <b class="mono">${rsp(upiAmt(o))}</b> from ${esc(o.roll)}. Do not hand over food until you confirm it. Never accept a screenshot.</p><div class="r-acts"><button class="btn lg ok" onclick="confirmPay(${o.id},'ok')">${rsp(upiAmt(o))} received</button><button class="btn ghost lg" onclick="confirmPay(${o.id},'no')">Not received, cancel order</button></div></div>`;
+  if(checking(o))return `<div class="result cash"><div class="r-lbl">Token ${o.token}, ${esc(o.roll)}</div><div class="r-big">UPI NOT CONFIRMED</div><p style="margin:0 0 16px">Open your UPI and look for exactly <b class="mono">${rsp(upiAmt(o))}</b> from ${esc(o.roll)}. Do not hand over food until you confirm it. Never accept a screenshot.</p><div class="r-acts"><button class="btn lg ok" onclick="confirmPay(${o.id},'ok')">${rsp(upiAmt(o))} received</button><button class="btn ghost lg" onclick="confirmPay(${o.id},'no')">Not received, cancel order</button></div></div>`;
   const paid=o.pay==='upi',g=giveOf(o),sel=g.reduce((a,b)=>a+b,0),amt=o.items.reduce((t,it,i)=>t+it.p*g[i],0),rest=leftOf(o)-sel,multi=leftOf(o)>1;
   const rows=o.items.map((it,i)=>{const r=it.q-dOf(it);if(!r)return '';return multi?`<li class="gv"><span><b>${g[i]}</b>of ${r} ${esc(it.n)}</span><div class="step sm"><button aria-label="Give one less" onclick="giveAdj(${o.id},${i},-1)">−</button><span>${g[i]}</span><button aria-label="Give one more" onclick="giveAdj(${o.id},${i},1)">+</button></div></li>`:`<li><b>${r}</b>${esc(it.n)}</li>`}).join('');
   const note=(o.hold?'<div class="r-note"><b>On hold.</b> Part of this order is not ready yet. The student waits or comes back, same token.</div>':'')+(isPart(o)?'<div class="r-note">Partly collected earlier. This is what is still owed.</div>':'')+(multi?'<div class="r-note">Set how many of each item you hand over now. Whatever is left stays open on the same token.</div>':'');
-  return `<div class="result ${paid?'paid':'cash'}"><div class="r-lbl">Token ${o.token}, ${esc(o.roll)}</div><div class="r-big">${paid?'PAID by GPay':sel?'COLLECT '+rs(amt)+' CASH':'Nothing selected'}</div>
+  return `<div class="result ${paid?'paid':'cash'}"><div class="r-lbl">Token ${o.token}, ${esc(o.roll)}</div><div class="r-big">${paid?'PAID by UPI':sel?'COLLECT '+rs(amt)+' CASH':'Nothing selected'}</div>
   ${note}<ul class="r-items">${rows}</ul><div class="r-st" style="margin-bottom:14px">Status ${stChip(o)}${o.coming?'<span class="chip ok">On the way</span>':''}</div>
   <div class="r-acts"><button class="btn lg ${paid?'ok':'warn'}" ${sel?'':'disabled'} onclick="handOver(${o.id})">${rest>0?'Hand over '+sel+' now, '+rest+' later':paid?'Hand over':'Cash received, hand over'}</button>
   ${o.hold?`<button class="btn ghost lg" onclick="advance(${o.id},'ready')">Fully ready, take off hold</button>`:`<button class="btn ghost lg" onclick="holdOrder(${o.id},true)">Put on hold, not fully ready</button>`}</div></div>`;
@@ -3830,7 +3848,7 @@ function resultHtml(){
 function checkCard(){
   const l=toCheck(S.auth);
   if(!l.length)return '';
-  return `<div class="card pad paycheck"><div class="sec-h"><h3>Have they paid?</h3><span class="chip warn mono">${l.length}</span></div><p class="mute small" style="margin:0 0 6px">Check that this exact amount reached your QR account. Tap Yes and the student gets their token. Tap No and the order is cancelled.</p>${l.map(o=>`<div class="pc"><div class="pc-b"><div class="pc-amt mono">${o.bill?'Bill '+o.bill+', ':''}${rsp(upiAmt(o))}</div><div class="mute small">${esc(o.roll)}${o.phone?', '+esc(o.phone):''}, ${fmt(o.at)}</div><div class="mute small">${o.items.map(i=>i.q+' x '+esc(i.n)+' '+rs(i.p*i.q)).join(', ')}</div></div><div class="pc-a"><button class="btn sm ok" onclick="confirmPay(${o.id},'ok')">Yes</button><button class="btn sm ghost" onclick="confirmPay(${o.id},'no')">No</button></div></div>`).join('')}</div>`;
+  return `<div class="card pad paycheck"><div class="sec-h"><h3>Have they paid?</h3><span class="chip warn mono">${l.length}</span></div><p class="mute small" style="margin:0 0 6px">Check that this exact amount reached your QR account. Tap Yes and the student gets their token. Tap No and the order is cancelled.</p>${l.map(o=>`<div class="pc"><div class="pc-b"><div class="pc-amt mono">${o.bill?'Bill '+o.bill+', ':''}${rsp(upiAmt(o))}</div><div class="mute small">${esc(o.roll)}${o.phone?', '+esc(o.phone):''}, ${fmt(o.at)}</div><div class="mute small">${o.items.map(i=>i.q+' x '+esc(i.n)+' '+rs(i.p*i.q)).join(', ')}</div></div><div class="pc-a"><button class="btn sm ok" onclick="confirmPay(${o.id},'ok')">Yes, payment received</button><button class="btn sm ghost" onclick="confirmPay(${o.id},'no')">No</button></div></div>`).join('')}</div>`;
 }
 function waitCard(){
   const w=liveOf(S.auth).filter(o=>isActive(o)&&(o.hold||isPart(o))).sort((a,b)=>a.id-b.id);
@@ -3845,7 +3863,7 @@ function counterView(){
   <div class="keys">${keys.map(k=>`<button class="key ${k==='C'||k==='D'?'fn':''}" onclick="padKey('${k}')">${k==='C'?'Clear':k==='D'?'Delete':k}</button>`).join('')}</div>
   <p class="fine center">Use the keypad or the keyboard. It checks on the 4th digit.</p></div>
   <div class="rcol">${ui.preChecks?`<a class="card pad paycheck" style="display:block;margin-bottom:14px" href="#shop-pre"><b>${plural(ui.preChecks,'preorder')} waiting for your Yes or No</b><div class="mute small">Tap to open Preorders</div></a>`:''}${checkCard()}${resultHtml()}${waitCard()}<div class="card pad"><div class="sec-h"><h3>On the way now</h3><span class="mute small mono">${onway.length}</span></div>
-  ${onway.length?onway.map(o=>`<button class="ow" onclick="loadToken('${o.token}')"><span class="mono">${o.token}</span><span class="ow-b">${itemsText(o)}</span>${checking(o)?'<span class="chip warn">Check GPay</span>':o.pay==='upi'?'<span class="chip ok">Paid</span>':`<span class="chip warn">${rs(o.total)} cash</span>`}</button>`).join(''):'<p class="mute small" style="margin:0">Students who tap I\'m coming show up here, oldest first.</p>'}</div></div></div>`;
+  ${onway.length?onway.map(o=>`<button class="ow" onclick="loadToken('${o.token}')"><span class="mono">${o.token}</span><span class="ow-b">${itemsText(o)}</span>${checking(o)?'<span class="chip warn">Check UPI</span>':o.pay==='upi'?'<span class="chip ok">Paid</span>':`<span class="chip warn">${rs(o.total)} cash</span>`}</button>`).join(''):'<p class="mute small" style="margin:0">Students who tap I\'m coming show up here, oldest first.</p>'}</div></div></div>`;
 }
 function kcard(o){
   const held=o.status==='placed'&&o.pay==='cash'&&!o.coming&&!o.hold;
@@ -3877,8 +3895,8 @@ function shopMenuView(){
 }
 function settingsView(){
   const s=shopOf(S.auth),st=S.shops[S.auth];
-  return `<div class="card pad form"><label class="lbl">GPay UPI ID</label><input class="input mono" value="${esc(st.upi)}" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" onchange="setField('upi',this.value)">
-  <p class="fine">Student GPay payments for ${s.name} go only to this ID. Each shop has its own.</p>
+  return `<div class="card pad form"><label class="lbl">UPI ID</label><input class="input mono" ${USE_PHP?'readonly':''} value="${esc(st.upi)}" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" onchange="setField('upi',this.value)">
+  <p class="fine">Student UPI payments for ${s.name} go only to this ID. Each shop has its own.</p>
   <label class="lbl" for="gstin">GSTIN</label><input id="gstin" class="input mono" value="${esc(gstinOf(S.auth))}" placeholder="Leave empty if not GST registered" autocapitalize="characters" autocorrect="off" spellcheck="false" onchange="setField('gstin',this.value)">
   <p class="fine">Printed on every counter bill with the CGST and SGST split. Leave empty if ${s.name} is not GST registered. This demo uses a sample GSTIN.</p>
   <label class="lbl">Max orders per day</label><input class="input mono" type="number" inputmode="numeric" min="1" value="${st.cap}" onchange="setField('cap',this.value)">
@@ -3909,7 +3927,7 @@ async function preLoad(){
   if(r.s!==200){g.err=(r.j&&r.j.error)||'Could not load preorders';if(!g.data)g.data={tomorrow:{stock:[],orders:[]},today:{stock:[],orders:[]}};softRender();return}
   const sig=JSON.stringify(r.j);g.err='';g.sid=sid;if(sig!==g.sig){g.sig=sig;g.data=r.j;softRender()}
 }
-async function prePay(id,v){const r=await php('POST','shop/'+S.auth+'/orders/'+id+'/pay',{v});ui.toast=r.s===200?(v==='ok'?'Payment verified. Bill '+r.j.order.billNo+' gets token '+r.j.order.token+'.':'Marked as not paid. The student has been told.'):((r.j&&r.j.error)||'That did not work. Try again.');await preLoad();phpSync();render()}
+async function prePay(id,v){const r=await php('POST','shop/'+S.auth+'/orders/'+id+'/pay',{v});if(r.s===200&&v==='ok')paidDone(mapOrder(r.j.order,true));else ui.toast=r.s===200?'Marked as not paid. The student has been told.':((r.j&&r.j.error)||'That did not work. Try again.');await preLoad();phpSync();render()}
 function preView(){
   const g=pre();
   if(!g.data||g.sid!==S.auth){if(!g.busy){g.busy=true;setTimeout(()=>preLoad().finally(()=>{g.busy=false}),0)}return '<p class="mute">Loading preorders...</p>'}
@@ -3918,7 +3936,7 @@ function preView(){
   return `<div class="seg" role="tablist" style="max-width:340px;margin-bottom:16px"><button type="button" class="${g.tab==='tomorrow'?'on':''}" onclick="pre().tab='tomorrow';render()">Tomorrow</button><button type="button" class="${g.tab==='today'?'on':''}" onclick="pre().tab='today';render()">Today</button></div>
   ${g.err?`<div class="banner">${esc(g.err)}</div>`:''}
   <div class="kpis"><div class="kpi"><span>Orders</span><b>${d.orders.length}</b></div><div class="kpi"><span>Items to make</span><b>${plates}</b></div><div class="kpi"><span>Paid items</span><b>${paidQ}</b></div><div class="kpi"><span>Value</span><b>${rs(money)}</b></div></div>
-  ${w.length?`<div class="card pad paycheck" style="margin-top:14px"><div class="sec-h"><h3>Have they paid?</h3><span class="chip warn mono">${w.length}</span></div><p class="mute small" style="margin:0 0 6px">Check that this exact amount reached your QR account. Tap Yes and the student gets their token. Tap No and the order is cancelled.</p>${w.map(o=>`<div class="pc"><div class="pc-b"><div class="pc-amt mono">Bill ${o.billNo}, ${rsp(o.upiAmt)}</div><div class="mute small">${esc(o.student.name)}, ${esc(o.student.phone)}</div><div class="mute small">${o.items.map(i=>i.q+' x '+esc(i.n)+' '+rs(i.p*i.q)).join(', ')}</div></div><div class="pc-a"><button class="btn sm ok" onclick="prePay(${o.id},'ok')">Yes</button><button class="btn sm ghost" onclick="prePay(${o.id},'no')">No</button></div></div>`).join('')}</div>`:''}
+  ${w.length?`<div class="card pad paycheck" style="margin-top:14px"><div class="sec-h"><h3>Have they paid?</h3><span class="chip warn mono">${w.length}</span></div><p class="mute small" style="margin:0 0 6px">Check that this exact amount reached your QR account. Tap Yes and the student gets their token. Tap No and the order is cancelled.</p>${w.map(o=>`<div class="pc"><div class="pc-b"><div class="pc-amt mono">Bill ${o.billNo}, ${rsp(o.upiAmt)}</div><div class="mute small">${esc(o.student.name)}, ${esc(o.student.phone)}</div><div class="mute small">${o.items.map(i=>i.q+' x '+esc(i.n)+' '+rs(i.p*i.q)).join(', ')}</div></div><div class="pc-a"><button class="btn sm ok" onclick="prePay(${o.id},'ok')">Yes, payment received</button><button class="btn sm ghost" onclick="prePay(${o.id},'no')">No</button></div></div>`).join('')}</div>`:''}
   <h2 class="h2">What to bring</h2>
   <div class="card tblwrap"><table class="tbl"><thead><tr><th>Item</th><th>Total</th><th>Paid</th><th>Waiting</th></tr></thead><tbody>${d.stock.map(i=>`<tr><td>${esc(i.name)}</td><td class="mono"><b>${i.qty}</b></td><td class="mono">${i.paid}</td><td class="mono">${i.waiting}</td></tr>`).join('')||'<tr><td colspan="4" class="mute">No preorders yet.</td></tr>'}</tbody></table></div>
   <p class="fine">Waiting items are not paid yet, so they can still drop off. Preorders close at ${fmt(PRE_CUTOFF)} the day before.</p>
@@ -4020,8 +4038,8 @@ function billingView(){
   ${mode==='cash'?`<label class="lbl" for="bgot" style="margin:16px 0 8px">Cash received</label><input id="bgot" class="input mono" inputmode="numeric" autocomplete="off" placeholder="${total}" value="${esc(ui.bgot||'')}" oninput="bGotIn(this.value)">
   <div class="quick">${quick.map(v=>`<button onclick="ui.bgot='${v}';render()">${v===total?'Exact':rs(v)}</button>`).join('')}</div><div id="chg" class="chg">${chgHtml(total)}</div>
   <button id="bsave" class="btn lg ok" ${got&&got<total?'disabled':''} onclick="saveBill()">Cash received, save bill</button>`
-  :`<div class="qrbox"><div class="qr">${upiQr(upiLink(s,total,'Bill '+billNo(S.auth)))}</div><div class="mute small center">Customer scans and pays ${rs(total)} to <span class="mono">${esc(st.upi)}</span></div></div>
-  <button class="btn lg ok" onclick="saveBill()">UPI received, save bill</button><p class="fine center">Tap only after ${rs(total)} shows in your GPay or soundbox.</p>`}`
+  :`<div class="qrbox"><div class="qr">${upiQr(upiLink(s,total,'Bill '+billNo(S.auth)))}</div><div class="mute small center">Customer scans and pays ${rs(total)} to <span class="mono">${esc(upiShow(s))}</span></div></div>
+  <button class="btn lg ok" onclick="saveBill()">UPI received, save bill</button><p class="fine center">Tap only after ${rs(total)} shows in your UPI or soundbox.</p>`}`
   :`<p class="mute small" style="margin:8px 0 0">Tap items to start a bill. Menu prices include GST${g?', the bill shows the CGST and SGST split':''}.</p>`}</div>`;
   const today=billsOf(S.auth,S.day).slice().reverse();
   const recent=today.length?`<div class="card pad"><div class="sec-h" style="margin-bottom:6px"><h3>Today's bills</h3><a class="fine" style="margin:0" href="#shop-closing">Day closing</a></div>${today.slice(0,5).map(b=>`<button class="ow" onclick="ui.sheet={type:'receipt',id:${b.id}};render()"><span class="mono small" style="font-size:13px">${b.no.split('/').pop()}</span><span class="ow-b">${fmt(b.at)}, ${plural(sum(b.items,i=>i.q),'item')}</span>${b.void?'<span class="chip line">Cancelled</span>':`<span class="chip ${b.mode==='cash'?'warn':'ok'}">${b.mode==='cash'?'Cash':'UPI'} ${rs(b.total)}</span>`}</button>`).join('')}</div>`:'';
@@ -4049,8 +4067,8 @@ function cboxHtml(exp){const n=ui.counted===''?null:parseInt(ui.counted);if(n===
 function cashIn(v,exp){ui.counted=v.replace(/\D/g,'').slice(0,7);document.getElementById('cbox').innerHTML=cboxHtml(exp)}
 function closingText(sid){
   const s=shopOf(sid),c=dayClose(sid),t=tax(c.total),L=['*'+s.name+' day closing*',billDate(S.day)+', '+fmt(S.now),''];
-  L.push('Counter cash '+rs(c.cCash),'Counter UPI '+rs(c.cUpi),'App GPay '+rs(c.aUpi),'App cash '+rs(c.aCash),'*Total sales '+rs(c.total)+'*','');
-  L.push('Cash in box should be '+rs(c.expCash),'GPay should show '+rs(c.expUpi));
+  L.push('Counter cash '+rs(c.cCash),'Counter UPI '+rs(c.cUpi),'App UPI '+rs(c.aUpi),'App cash '+rs(c.aCash),'*Total sales '+rs(c.total)+'*','');
+  L.push('Cash in box should be '+rs(c.expCash),'UPI should show '+rs(c.expUpi));
   if(gstinOf(sid))L.push('','GST in sales '+rsp(t.gst)+' (CGST '+rsp(t.cgst)+', SGST '+rsp(t.sgst)+')');
   if(c.items.length)L.push('','Top items: '+c.items.slice(0,3).map(i=>i.n+' '+(i.c+i.a)).join(', '));
   return L.join('\n');
@@ -4061,14 +4079,14 @@ function closingView(){
   <div class="kpi"><span>App orders</span><b>${c.appN}</b><small>${rs(c.aUpi+c.aCash)}</small></div><div class="kpi"><span>${g?'GST in sales':'GST'}</span><b>${g?rsp(t.gst):'None'}</b>${g?'<small>CGST + SGST</small>':'<small>Not registered</small>'}</div></div>
   <div class="cgrid"><div class="card pad"><div class="sec-h" style="margin-bottom:4px"><h3>Money in today</h3></div>
   <div class="mrow"><span>Counter bills, cash</span><b class="mono">${rs(c.cCash)}</b></div><div class="mrow"><span>Counter bills, UPI</span><b class="mono">${rs(c.cUpi)}</b></div>
-  <div class="mrow"><span>App orders, GPay</span><b class="mono">${rs(c.aUpi)}</b></div><div class="mrow"><span>App orders, cash at counter</span><b class="mono">${rs(c.aCash)}</b></div>
+  <div class="mrow"><span>App orders, UPI</span><b class="mono">${rs(c.aUpi)}</b></div><div class="mrow"><span>App orders, cash at counter</span><b class="mono">${rs(c.aCash)}</b></div>
   <div class="mrow tot"><span>Total</span><span class="mono">${rs(c.total)}</span></div>
   <a class="btn lg" href="https://wa.me/?text=${encodeURIComponent(closingText(sid))}" target="_blank" rel="noopener">Share closing on WhatsApp</a></div>
   <div class="card pad"><div class="sec-h" style="margin-bottom:4px"><h3>Cash box check</h3></div>
   <div class="mrow"><span>Cash that should be in the box</span><b class="mono">${rs(c.expCash)}</b></div>
   <label class="lbl" for="counted" style="margin:16px 0 8px">Cash you counted</label><input id="counted" class="input mono" inputmode="numeric" autocomplete="off" placeholder="${c.expCash}" value="${esc(ui.counted||'')}" oninput="cashIn(this.value,${c.expCash})">
   <div id="cbox">${cboxHtml(c.expCash)}</div>
-  <div class="mrow" style="margin-top:14px"><span>Your GPay should show for today</span><b class="mono">${rs(c.expUpi)}</b></div>
+  <div class="mrow" style="margin-top:14px"><span>Your UPI should show for today</span><b class="mono">${rs(c.expUpi)}</b></div>
   ${g?`<div class="sec-h" style="margin:22px 0 4px"><h3>GST summary</h3><span class="mute small mono">${esc(g)}</span></div><div class="mrow"><span>Taxable value</span><span class="mono">${rsp(t.taxable)}</span></div><div class="mrow"><span>CGST 2.5%</span><span class="mono">${rsp(t.cgst)}</span></div><div class="mrow"><span>SGST 2.5%</span><span class="mono">${rsp(t.sgst)}</span></div>`:''}</div></div>
   <h2 class="h2">Items sold today</h2>
   ${c.items.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Item</th><th>Counter</th><th>App</th><th>Total</th><th>Amount</th></tr></thead><tbody>${c.items.map((i,k)=>`<tr><td>${esc(i.n)}${k===0?' <span class="chip ok">Top seller</span>':''}</td><td class="mono">${i.c}</td><td class="mono">${i.a}</td><td class="mono" style="color:var(--hi)">${i.c+i.a}</td><td class="mono">${rs(i.amt)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="card pad mute small">Nothing sold yet today.</div>'}
