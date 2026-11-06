@@ -523,7 +523,7 @@ tr.click{cursor:pointer}
 .an-card{margin-bottom:18px}.an-two{margin-bottom:0}.an-two .an-card{margin-bottom:18px}
 .an-ins{margin-bottom:18px}.ins{display:flex;gap:14px;align-items:flex-start;padding:13px 0;border-top:1px solid var(--line)}.ins:first-of-type{border-top:0}
 .ins p{margin:0;line-height:1.5;color:var(--text)}.ins b{color:var(--hi)}.ins-n{flex:none;width:24px;height:24px;border-radius:50%;background:var(--okbg);color:var(--ok);font-size:12px;font-weight:700;display:grid;place-items:center;margin-top:1px}
-.lg{display:flex;gap:16px;font-size:13px;color:var(--mute)}.lg span{display:inline-flex;align-items:center;gap:7px}.lg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--mute)}.legend span{display:inline-flex;align-items:center;gap:7px}.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
 .s1{background:#127A52}.s2{background:#B07D1C}
 .chart{display:grid;grid-template-columns:46px minmax(0,1fr);grid-template-rows:200px 24px;margin-top:6px}.chart.short{grid-template-rows:150px 24px}
 .ch-y{position:relative}.ch-y span{position:absolute;right:10px;transform:translateY(50%);font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -562,6 +562,23 @@ tr.click{cursor:pointer}
   .main-h h1{font-size:30px}
 }
 @media(max-width:700px){.kpis{grid-template-columns:1fr 1fr}}
+.ask-n{font-size:64px;font-weight:700;text-align:center;color:var(--hi);margin:18px 0 8px;letter-spacing:.04em}
+.ask-o{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ask-o button{height:76px;border-radius:18px;background:var(--s2);color:var(--hi);font-size:30px;font-weight:700}
+.ask-o button:active{background:var(--moss)}
+.rec-tabs{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 14px;scrollbar-width:none}
+.rec-tabs button{flex:none;border:1px solid var(--line2);background:var(--s1);color:var(--text);border-radius:99px;padding:9px 16px;font:600 14px var(--font);cursor:pointer}
+.rec-tabs button.on{background:var(--hi);border-color:var(--hi);color:#fff}
+.rec-f{display:grid;gap:14px;margin-bottom:18px}
+.rec-d{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.rec-d label{display:grid;gap:6px;font-size:12px;font-weight:600;color:var(--mute)}
+.rec-d .input,.rec-s .input{font-size:15px;padding:10px 14px;border-radius:12px;height:44px}
+.rec-pre{display:flex;gap:6px;flex-wrap:wrap}
+.rec-s{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.rec-s .input{flex:1 1 170px;width:auto;min-width:0;appearance:auto}
+.rec-k{grid-template-columns:repeat(2,minmax(0,260px))}
+.rec-t td{white-space:nowrap;max-width:340px;overflow:hidden;text-overflow:ellipsis}
+.rec-p{display:flex;gap:14px;justify-content:center;align-items:center;margin-top:16px}
 @media(max-width:600px){
   .page{padding:0 max(18px,var(--sar)) 0 max(18px,var(--sal))}
   .cats{padding:12px 18px;margin:0 -18px;top:calc(58px + var(--sat))}
@@ -2999,8 +3016,30 @@ let outbox=[];try{outbox=JSON.parse(localStorage.getItem(K+'_out'))||[]}catch(e)
 let sending=false,pendingRender=false,dirty=false,rt,es,retry=0;
 function saveOut(){try{localStorage.setItem(K+'_out',JSON.stringify(outbox))}catch(e){}}
 const PHP_OWNED=['orders','st','hold','give','coming','pay','cancel','clock','reset']; // with the PHP backend these come from the server, not ntfy
-function emit(ev){if(USE_PHP&&PHP_OWNED.includes(ev.t))return;ev.c=CID;outbox.push(ev);saveOut();flush()}
+function emit(ev){
+  if(USE_PHP&&PHP_OWNED.includes(ev.t))return;
+  if(USE_PHP&&!ev.sid)ev.sid=(ev.b&&ev.b.sid)||(ev.cu&&ev.cu.sid)||(ev.camp&&ev.camp.sid)||S.auth;
+  ev.c=CID;outbox.push(ev);saveOut();flush();
+}
+// PHP build: the counter queues each change and sends it to the database one at a time, so nothing is lost when the network drops.
+async function phpFlush(){
+  if(sending||MODE!=='shop'||S.role!=='admin'||!getTok())return;sending=true;
+  while(outbox.length){
+    const ev=outbox[0];
+    if(PHP_OWNED.includes(ev.t)||!ev.sid){outbox.shift();saveOut();continue}
+    const r=await php('POST','shop/'+ev.sid+'/sync',ev);
+    if(r.s===0||r.s===429||r.s>=500){sending=false;setTimeout(flush,4000);return}
+    if(r.s===401){sending=false;return}
+    if(r.s===200){
+      if(ev.t==='bill'&&r.j.no){const b=S.bills.find(x=>x.id===ev.b.id);if(b&&b.no!==r.j.no){b.no=r.j.no;save();softRender()}}
+      if(ev.t==='cust'&&r.j.tk){const c=custBy(ev.sid,ev.cu.phone);if(c){c.tk=r.j.tk;c.stopped=!!r.j.stopped;save()}}
+    }else console.error('change refused by the server',ev,r.j);
+    outbox.shift();saveOut();
+  }
+  sending=false;
+}
 async function flush(){
+  if(USE_PHP)return phpFlush();
   if(sending)return;sending=true;
   while(outbox.length){
     try{
@@ -3044,6 +3083,7 @@ function applyEv(ev){
   }
 }
 function connect(){
+  if(USE_PHP)return;
   if(es)es.close();
   es=new EventSource(RELAY+TOPIC+'/sse?since='+(S.last||'all'));
   es.onopen=()=>{retry=0;if(!net.on){net.on=true;softRender()}};
@@ -3073,7 +3113,7 @@ async function php(method,path,body){
     const h={};if(body!==undefined)h['Content-Type']='application/json';if(tk)h.Authorization='Bearer '+tk;
     const r=await fetch(PHP.replace(/\/$/,'')+'/'+path,{method,headers:h,body:body!==undefined?JSON.stringify(body):undefined,signal:ac.signal});
     let j={};try{j=await r.json()}catch(e){}
-    if(r.status===401&&tk&&!/^(otp|totp|profile|login)/.test(path))phpExpired();
+    if(r.status===401&&tk&&!/^(otp|mfa|profile|login)/.test(path))phpExpired();
     return {s:r.status,j};
   }catch(e){return {s:0,j:{error:e&&e.name==='AbortError'?'This is taking too long. Try again in a moment.':'No connection. Check your internet and try again.'}}}
   finally{clearTimeout(t)}
@@ -3107,6 +3147,7 @@ function mapOrder(x,shopSide){
     items:x.items.map(i=>{const r={id:i.id,n:i.n,p:i.p,q:i.q};if(i.d)r.d=i.d;return r}),
     total:x.total,pay:x.pay,paid:x.pay==='upi'&&x.ps==='ok',status:x.status,coming:!!x.coming,token:x.token||'',bill:x.billNo||0,pre:!!x.pre,at:istMin(x.created),hold:!!x.hold};
   if(x.ps==='check'||x.ps==='ok'||x.ps==='no')o.ps=x.ps;
+  if(x.refund)o.refund=x.refund;
   if(x.pay==='upi'&&x.upiAmt)o.upiAmt=x.upiAmt;
   if(x.cashPaid)o.cashPaid=x.cashPaid;
   if(x.coming)o.comingAt=istMin(x.updated);
@@ -3115,6 +3156,69 @@ function mapOrder(x,shopSide){
   return o;
 }
 let syncSig='',syncBusy=false;
+// Open or closed, special, cap and sold out come from the database, so every phone and counter sees the same thing.
+function applyShops(m){
+  if(outbox.length)return;
+  let ch=false;
+  SHOPS.forEach(x=>{const v=m[x.id],c=S.shops[x.id];if(!v||!c)return;
+    const sold=Object.keys(v.sold||{}).sort().join();
+    if(Object.keys(c.sold).sort().join()!==sold){c.sold=v.sold||{};ch=true}
+    if(c.open!==v.open){c.open=v.open;ch=true}
+    if(c.cap!==v.cap){c.cap=v.cap;ch=true}
+    if(v.special&&itemOf(x,v.special)&&c.special!==v.special){c.special=v.special;ch=true}
+    if(typeof v.gstin==='string'&&c.gstin!==v.gstin){c.gstin=v.gstin;ch=true}});
+  if(ch){save();softRender()}
+}
+const mapBill=x=>{const b={id:x.id,sid:x.sid,no:x.no,day:dayStrNum(x.dayStr),at:istMin(x.created),items:x.items,total:x.total,mode:x.mode,got:x.got,gstin:x.gstin};if(x.void)b.void=true;if(x.cname)b.cname=x.cname;if(x.cphone)b.cphone=x.cphone;return b};
+const dataSince={},dataBusy={};
+async function phpData(sid,force){
+  if(S.role!=='admin'||!getTok()||dataBusy[sid])return;
+  if(!force&&Date.now()-(apiAt[sid]||0)<15000)return;
+  apiAt[sid]=Date.now();dataBusy[sid]=true;
+  try{
+    const full=!dataSince[sid],r=await php('GET','shop/'+sid+'/data?since='+(dataSince[sid]||0));
+    if(r.s!==200||!Array.isArray(r.j.bills))return;
+    dataSince[sid]=r.j.now;(ui.maxSeq||(ui.maxSeq={}))[sid]=r.j.maxSeq;
+    if(full&&ui.counted===''&&r.j.counted!=null)ui.counted=String(r.j.counted);
+    let ch=false;
+    const at=new Map(S.bills.map((b,i)=>[b.id,i]));
+    r.j.bills.forEach(x=>{const b=mapBill(x);if(!okBill(b))return;if(at.has(b.id)){const i=at.get(b.id),o=S.bills[i];if(JSON.stringify(o)===JSON.stringify(b))return;S.bills[i]=b}else{at.set(b.id,S.bills.length);S.bills.push(b)}ch=true});
+    r.j.customers.forEach(v=>{const ex=custBy(sid,v.phone),c={sid,phone:v.phone,name:v.name,year:v.year,ok:v.ok,stopped:v.stopped,tk:v.tk,visits:v.visits,spent:v.spent,first:dayStrNum(v.firstStr),last:dayStrNum(v.lastStr)};
+      if(ex&&ex.visits===c.visits&&ex.spent===c.spent&&ex.tk===c.tk&&ex.stopped===c.stopped&&ex.ok===c.ok&&ex.name===c.name)return;
+      c.id=ex?ex.id:newId();upsertCust(c);ch=true});
+    r.j.camps.forEach(v=>{const ex=S.camps.find(c=>c.id===v.id);if(ex){if(ex.sent.length!==v.sent.length){ex.sent=Array.from(new Set(ex.sent.concat(v.sent)));ch=true}return}
+      S.camps.push({id:v.id,sid,day:dayStrNum(v.dayStr),at:istMin(v.created),msg:v.msg,file:v.file,to:v.to,n:v.n,sent:v.sent});ch=true});
+    if(full){
+      S.up=S.up||{};
+      if(!S.up[sid]){   // first time on this device: send up whatever it was holding before the database took over
+        S.up[sid]=1;
+        const onSrv=new Set(r.j.bills.map(b=>b.id)),srvC=new Set(r.j.customers.map(c=>c.phone)),srvO=new Set(r.j.camps.map(c=>c.id));
+        S.bills.filter(b=>b.sid===sid&&!onSrv.has(b.id)).forEach(b=>emit({t:'bill',b}));
+        custsOf(sid).filter(c=>!srvC.has(c.phone)).forEach(c=>emit({t:'cust',cu:c}));
+        S.camps.filter(c=>c.sid===sid&&!srvO.has(c.id)).forEach(c=>{emit({t:'camp',camp:c});c.sent.forEach(ph=>emit({t:'campsent',sid,id:c.id,ph}))});
+        legacyCusts(sid);
+      }
+      S.bills=S.bills.filter(b=>b.sid!==sid||b.day>S.day-46);   // the page keeps 45 days, the database keeps everything
+      ch=true;
+    }
+    if(ch){save();softRender()}
+  }finally{dataBusy[sid]=false;flush()}
+}
+// Customers saved earlier in n8n come across once, on a device that holds the shop PIN.
+async function legacyCusts(sid){
+  const key=pinOf(sid);if(!key)return;
+  let r;try{r=await fetch(API+'/customers?sid='+sid+'&key='+encodeURIComponent(key)).then(x=>x.json())}catch(e){return}
+  if(r&&Array.isArray(r.customers))r.customers.forEach(v=>{if(!custBy(sid,v.phone))emit({t:'cust',sid,cu:{sid,phone:v.phone,name:v.name,year:v.year,ok:v.ok,stopped:v.stopped,tk:v.tk,visits:v.visits,spent:v.spent,first:v.first,last:v.last}})});
+}
+async function refundDone(id){
+  const r=await php('POST','shop/'+S.auth+'/orders/'+id+'/refund',{});
+  ui.toast=r.s===200?'Refund marked as given. The student can see it.':((r.j&&r.j.error)||'That did not work. Try again.');
+  ui.refSig='';await phpSync();render();
+}
+function refundCard(){
+  const l=(ui.refunds||[]);if(!l.length)return '';
+  return `<div class="card pad paycheck" style="margin-bottom:14px"><div class="sec-h"><h3>Refunds to give</h3><span class="chip warn mono">${l.length}</span></div><p class="mute small" style="margin:0 0 6px">These students cancelled after paying. Send the money back on UPI, then tap Refund done.</p>${l.map(o=>`<div class="pc"><div class="pc-b"><div class="pc-amt mono">Bill ${o.billNo}, ${rsp(o.upiAmt||o.total)}</div><div class="mute small">${esc(o.student.name)}, ${esc(o.student.phone)}</div><div class="mute small">${o.ps==='check'?'Not confirmed by you. Refund only if this amount reached you.':'Payment was confirmed.'}</div></div><div class="pc-a"><button class="btn sm ok" onclick="refundDone(${o.id})">Refund done</button></div></div>`).join('')}</div>`;
+}
 async function phpSync(){
   if(syncBusy||!getTok())return;
   const shopSide=MODE==='shop';
@@ -3123,6 +3227,8 @@ async function phpSync(){
   try{
     const r=await php('GET',shopSide?'shop/'+S.auth+'/orders':'orders/mine');
     if(r.s===200&&Array.isArray(r.j.orders)){
+      if(r.j.shops)applyShops(r.j.shops);
+      if(shopSide){const rs=JSON.stringify(r.j.refunds||[]);if(rs!==ui.refSig){ui.refSig=rs;ui.refunds=r.j.refunds||[];softRender()}}
       const list=r.j.orders.map(x=>mapOrder(x,shopSide)).filter(okOrder),sig=JSON.stringify(list);
       if(shopSide&&(r.j.preChecks||0)!==(ui.preChecks||0)){ui.preChecks=r.j.preChecks||0;softRender()}
       const was=shopSide?[]:S.orders.filter(checking).map(o=>o.id),moved=list.find(o=>was.includes(o.id)&&(o.ps==='ok'||o.ps==='no'));
@@ -3166,7 +3272,7 @@ async function phpOtp(path,data){
   if(path==='otp-verify'){
     const r=await php('POST','otp-verify',{email:data.email,code:data.code});
     if(r.s!==200||!r.j.ok)return {ok:false,error:r.j.error||'Could not check the code. Try again.'};
-    if(r.j.step)return {ok:true,step:r.j.step,ticket:r.j.ticket,secret:r.j.secret||'',uri:r.j.uri||''};
+    if(r.j.step)return {ok:true,step:r.j.step,ticket:r.j.ticket,passkey:!!r.j.passkey,online:!!r.j.online};
     if(r.j.isNew)return {ok:true,isNew:true,pt:r.j.pt,uid:'new'};
     setTok(r.j.token);const u=r.j.user;S.role=u.role;S.scope=u.shop||'';
     return {ok:true,isNew:false,uid:u.uid,name:u.name,phone:u.phone,role:u.role,shop:u.shop,hasPw:u.hasPw};
@@ -3174,19 +3280,13 @@ async function phpOtp(path,data){
   if(path==='login'){
     const r=await php('POST','login',{email:data.email,password:data.password});
     if(r.s!==200||!r.j.ok)return {ok:false,error:r.j.error||'Could not log in. Try again.'};
-    if(r.j.step)return {ok:true,step:r.j.step,ticket:r.j.ticket,secret:r.j.secret||'',uri:r.j.uri||''};
+    if(r.j.step)return {ok:true,step:r.j.step,ticket:r.j.ticket,passkey:!!r.j.passkey,online:!!r.j.online};
     setTok(r.j.token);const u=r.j.user;S.role=u.role;S.scope=u.shop||'';
     return {ok:true,isNew:false,uid:u.uid,name:u.name,phone:u.phone,role:u.role,shop:u.shop,hasPw:u.hasPw};
   }
   if(path==='password'){
     const r=await php('POST','password',{password:data.password});
     return r.s===200?{ok:true}:{ok:false,error:r.j.error||'Could not save your password. Try again.'};
-  }
-  if(path==='totp'){
-    const r=await php('POST','totp',{ticket:data.ticket,code:data.code});
-    if(r.s!==200||!r.j.ok)return {ok:false,error:r.j.error||'Could not check the code. Try again.'};
-    setTok(r.j.token);const u=r.j.user;S.role=u.role;S.scope=u.shop||'';
-    return {ok:true,isNew:false,uid:u.uid,name:u.name,phone:u.phone,role:u.role,shop:u.shop};
   }
   if(path==='profile'){
     const r=await php('POST','profile',{email:data.email,pt:data.pt,name:data.name,phone:data.phone});
@@ -3255,7 +3355,7 @@ const usedToday = sid => todays(sid).filter(o=>o.status!=='cancelled').length;
 const getO = id => S.orders.find(o=>o.id===+id);
 const strikes = () => USE_PHP?S.orders.filter(o=>o.roll===S.roll&&o.pay==='cash'&&o.status==='expired').length:(S.strikes[S.roll]||0);
 const cartOf = sid => S.carts[sid]||(S.carts[sid]={});
-function cartLines(sid){const s=shopOf(sid),c=cartOf(sid),sold=S.shops[sid].sold;return Object.keys(c).map(id=>{const it=itemOf(s,id);return it&&!sold[id]?{...it,qty:c[id]}:null}).filter(Boolean)}
+function cartLines(sid){const s=shopOf(sid),c=cartOf(sid),sold=USE_PHP&&whenOf(sid)==='tomorrow'?{}:S.shops[sid].sold;return Object.keys(c).map(id=>{const it=itemOf(s,id);return it&&!sold[id]?{...it,qty:c[id]}:null}).filter(Boolean)}
 const cartTotal = sid => cartLines(sid).reduce((a,l)=>a+l.price*l.qty,0);
 const cartCount = sid => cartLines(sid).reduce((a,l)=>a+l.qty,0);
 const plural = (n,w) => n+' '+w+(n===1?'':'s');
@@ -3286,6 +3386,8 @@ function statusText(o){
 }
 const sv = (p,w=18) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const ICON = {
+  records:sv('<path d="M4 6h16M4 12h16M4 18h16M9 6v12"/>'),
+  students:sv('<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.5 4-6.5 8-6.5s7 2 8 6.5"/>'),
   back:sv('<path d="M15 18l-6-6 6-6"/>'),
   down:sv('<path d="M6 9l6 6 6-6"/>',12),
   user:sv('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',13),
@@ -3349,12 +3451,17 @@ function loginForm(){
   <div class="row2"><input id="lgpw" class="input" type="password" name="password" minlength="8" maxlength="72" autocomplete="new-password" enterkeyhint="go" placeholder="At least 8 characters" oninput="lgErrClear()"><button class="btn" id="lgbtn" type="submit" ${g.busy?'disabled':''}>Save</button></div>
   <div id="lgErr" class="err">${esc(g.err)}</div>
   <p class="fine" style="margin-top:2px">Tap Save when your browser asks to save the password.</p></form>`;
-  if(g.step==='totp_setup'||g.step==='totp')return `<p class="fine" style="margin:0 0 10px">${g.step==='totp_setup'?'Email code accepted. The counter needs one more step. Open an authenticator app (Google Authenticator, Microsoft Authenticator or 1Password), add an account by scanning this code, then type the 6 digit code it shows. You only do this once.':'Email code accepted. Open your authenticator app and type the 6 digit code for KPR Lunch. This device stays signed in, so you will not be asked again here.'}</p>
-  ${g.step==='totp_setup'?`<div style="width:176px;margin:0 0 8px;background:#fff;padding:8px;border-radius:12px">${upiQr(g.uri)}</div><p class="fine" style="margin:0 0 10px">Cannot scan? Type this key in the app: <b class="mono" style="word-break:break-all">${esc(g.secret)}</b></p>`:''}
-  <label class="lbl" for="lgtotp">Authenticator code</label>
-  <div class="row2"><input id="lgtotp" class="input mono" inputmode="numeric" maxlength="6" autocomplete="one-time-code" enterkeyhint="go" placeholder="123456" value="${esc(g.tcode||'')}" oninput="lgTotp(this)" onkeydown="if(event.key==='Enter')totpVerify()"><button class="btn" id="lgbtn" onclick="totpVerify()" ${g.busy?'disabled':''}>${g.busy?'Checking':(g.step==='totp_setup'?'Confirm':'Verify')}</button></div>
+  if(g.step==='second')return `<p class="fine" style="margin:0 0 14px">Email code accepted. One more step to prove it is you. This device stays signed in after this.</p>
+  ${g.passkey?`<button class="btn lg" id="lgpk" style="margin-top:0" onclick="pkLogin()" ${g.busy?'disabled':''}>${g.busy?'Waiting for your device':'Use fingerprint or Face ID'}</button>`:''}
+  <button class="btn lg ${g.passkey?'ghost':''}" id="lgask" style="margin-top:10px" onclick="askStart()">Confirm from my other device</button>
+  ${g.online?'':`<p class="fine">To confirm from another device, keep the counter open on it first.</p>`}
   <div id="lgErr" class="err">${esc(g.err)}</div>
   <p class="fine" style="margin-top:2px">Gmail: <b>${esc(g.email)}</b>. <button onclick="lgBack()">Start again</button></p>`;
+  if(g.step==='ask')return `<p class="fine" style="margin:0 0 6px">Open the counter on your other device. Tap <b>Yes, it was me</b>, then tap this number.</p>
+  <div class="ask-n mono" id="lgnum">${esc(String(g.number))}</div>
+  <p class="fine center">Waiting for your other device</p>
+  <div id="lgErr" class="err">${esc(g.err)}</div>
+  <p class="fine" style="margin-top:2px"><button onclick="askBack()">Go back</button></p>`;
   if(g.step==='code')return `<label class="lbl" for="lgcode">6 digit code</label>
   <div class="row2"><input id="lgcode" class="input mono" inputmode="numeric" maxlength="6" autocomplete="one-time-code" enterkeyhint="go" placeholder="123456" value="${esc(g.code)}" oninput="lgCode(this)" onkeydown="if(event.key==='Enter')otpVerify()"><button class="btn" id="lgbtn" onclick="otpVerify()" ${g.busy?'disabled':''}>${g.busy?'Checking':'Verify'}</button></div>
   <div id="lgErr" class="err">${esc(g.err)}</div>
@@ -3379,7 +3486,6 @@ function lgMail(el){const g=lg();g.email=el.value.trim();g.err='';const e=docume
 function lgName(el){const g=lg();g.name=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
 function lgPhone(el){el.value=el.value.replace(/\D/g,'').slice(0,10);const g=lg();g.phone=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
 function lgCode(el){el.value=el.value.replace(/\D/g,'').slice(0,6);const g=lg();g.code=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent='';if(g.code.length===6)otpVerify()}
-function lgTotp(el){el.value=el.value.replace(/\D/g,'').slice(0,6);const g=lg();g.tcode=el.value;g.err='';const e=document.getElementById('lgErr');if(e)e.textContent='';if(g.tcode.length===6)totpVerify()}
 function lgErrClear(){const g=lg();g.err='';const e=document.getElementById('lgErr');if(e)e.textContent=''}
 function lgUseCode(forgot){const g=lg();const m=document.getElementById('lgmail');if(m)g.email=m.value.trim();g.useCode=forgot!==null;g.forgot=!!forgot;g.err='';render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
 function lgMode(m){const g=lg();g.mode=m;g.useCode=false;g.forgot=false;g.err='';render();setTimeout(()=>{const i=document.getElementById('lgmail');if(i)i.focus()},50)}
@@ -3415,7 +3521,7 @@ async function otpVerify(){
   g.busy=true;g.err='';render();
   const r=await otpPost('otp-verify',{email:g.email,code:g.code});
   g.busy=false;
-  if(USE_PHP&&r&&r.ok&&r.step){g.step=r.step;g.ticket=r.ticket;g.secret=r.secret||'';g.uri=r.uri||'';g.tcode='';g.err='';clearInterval(lgTimer);render();setTimeout(()=>{const i=document.getElementById('lgtotp');if(i)i.focus()},50);return}
+  if(USE_PHP&&r&&r.ok&&r.step){secondStart(r);clearInterval(lgTimer);return}
   if(USE_PHP&&r&&r.ok&&!r.isNew&&phpLanded(r,g.email))return;
   if(USE_PHP&&r&&r.ok&&r.uid&&!r.isNew&&(g.forgot||!r.hasPw)){lgAskPw(r);return}
   if(!USE_PHP&&r&&r.ok&&r.uid&&await isAdminMail(g.email)){ui.lg=null;clearInterval(lgTimer);location.href='shop.html';return}
@@ -3423,15 +3529,76 @@ async function otpVerify(){
   else if(r&&r.ok&&r.uid&&r.name&&r.phone){S.email=g.email;S.roll=r.uid;S.name=r.name;S.phone=r.phone;ui.lg=null;clearInterval(lgTimer);save();go('')}
   else{g.err=(r&&r.error)||'Could not check the code. Try again.';g.code='';render();setTimeout(()=>{const i=document.getElementById('lgcode');if(i)i.focus()},50)}
 }
-async function totpVerify(){
+/* second step for counter accounts: fingerprint or Face ID, or yes it was me on a device already signed in */
+const b64uEnc=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const b64uDec=x=>Uint8Array.from(atob(x.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+function secondStart(r){const g=lg();g.step=r.step;g.ticket=r.ticket;g.passkey=r.passkey;g.online=r.online;g.err='';g.pkOpt=null;render();if(g.passkey)pkReady()}
+// fetched before the tap: iPhones only open Face ID when it comes straight from the tap
+async function pkReady(){const g=lg(),r=await php('POST','mfa/passkey/options',{ticket:g.ticket});g.pkOpt=r.s===200?r.j:null}
+function secondDone(j,mail){const u=j.user;setTok(j.token);S.role=u.role;S.scope=u.shop||'';phpLanded({role:u.role,shop:u.shop},mail)}
+async function pkLogin(){
   const g=lg();if(g.busy)return;
-  if(!/^\d{6}$/.test(g.tcode||'')){g.err='Type the 6 digit code from your authenticator app';render();return}
-  g.busy=true;g.err='';render();
-  const r=await otpPost('totp',{ticket:g.ticket,code:g.tcode});
+  if(!g.pkOpt){await pkReady();if(!g.pkOpt){g.err='Your sign in timed out. Start again.';render();return}}
+  const o=g.pkOpt;g.pkOpt=null;g.busy=true;g.err='';render();
+  let c=null;
+  try{c=await navigator.credentials.get({publicKey:{challenge:b64uDec(o.challenge),rpId:location.hostname,allowCredentials:o.allow.map(id=>({type:'public-key',id:b64uDec(id)})),userVerification:'required',timeout:60000}})}catch(e){}
+  if(!c){g.busy=false;g.err='Fingerprint or Face ID did not finish. Try again, or confirm from your other device.';render();pkReady();return}
+  const a=c.response,r=await php('POST','mfa/passkey/verify',{ticket:g.ticket,id:c.id,clientData:b64uEnc(a.clientDataJSON),authData:b64uEnc(a.authenticatorData),sig:b64uEnc(a.signature)});
   g.busy=false;
-  if(r&&r.ok&&phpLanded(r,g.email))return;
-  g.err=(r&&r.error)||'Could not check the code. Try again.';g.tcode='';render();setTimeout(()=>{const i=document.getElementById('lgtotp');if(i)i.focus()},50);
+  if(r.s===200&&r.j.token){secondDone(r.j,g.email);return}
+  g.err=(r.j&&r.j.error)||'Could not check that. Try again.';render();pkReady();
 }
+async function askStart(){
+  const g=lg(),r=await php('POST','mfa/ask/start',{ticket:g.ticket});
+  if(r.s!==200){g.err=(r.j&&r.j.error)||'Could not reach your other device. Try again.';render();return}
+  g.step='ask';g.number=r.j.number;g.err='';render();
+  clearInterval(lgTimer);lgTimer=setInterval(askWait,2000);
+}
+async function askWait(){
+  const g=lg(),r=await php('POST','mfa/ask/poll',{ticket:g.ticket}),t=r.j||{};
+  if(r.s===0||g.step!=='ask')return;
+  if(t.token){clearInterval(lgTimer);secondDone(t,g.email);return}
+  if(t.status==='wait')return;
+  clearInterval(lgTimer);
+  if(t.status==='no'||r.s!==200){lgBack();lg().err=t.status==='no'?'Your other device said this was not you, so this sign in was blocked.':(t.error||'Your sign in timed out. Start again.');render();return}
+  g.step='second';g.err='No answer from your other device. Try again.';render();
+}
+function askBack(){const g=lg();clearInterval(lgTimer);g.step='second';g.err='';render()}
+/* on a device already signed in: is this you, then match the number */
+async function askPoll(){
+  const r=await php('GET','asks');if(r.s!==200)return;
+  const a=r.j.ask,sh=ui.sheet,on=sh&&sh.type==='ask';
+  if(a&&!(on&&sh.id===a.id)){ui.sheet={type:'ask',id:a.id,device:a.device,at:a.at,opts:a.opts,stage:1};render()}
+  else if(!a&&on){ui.sheet=null;render()}
+}
+function askYes(){ui.sheet.stage=2;render()}
+async function askAnswer(b){
+  const id=ui.sheet.id,r=await php('POST','asks/'+id,b),ok=r.s===200&&r.j.status==='yes';
+  ui.sheet={type:'askdone',ok,msg:ok?'That sign in is allowed.':r.s===200?'Sign in blocked. If this was not you, someone has your email or password. Change them now.':'That sign in request has ended.'};render();
+}
+/* fingerprint or Face ID on this device */
+async function pkLoad(){const r=await php('GET','passkeys');if(r.s===200){ui.pk=r.j.keys;softRender()}
+  try{ui.pkCan=!!(window.PublicKeyCredential&&await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())}catch(e){ui.pkCan=false}softRender()}
+async function pkAdd(){
+  const o=await php('POST','passkeys/options',{});
+  if(o.s!==200){ui.toast=(o.j&&o.j.error)||'Could not start. Try again.';render();return}
+  const j=o.j;let c=null;
+  try{c=await navigator.credentials.create({publicKey:{challenge:b64uDec(j.challenge),rp:{name:'KPR Lunch',id:location.hostname},user:{id:b64uDec(j.userId),name:j.name,displayName:j.name},
+    pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},excludeCredentials:j.exclude.map(id=>({type:'public-key',id:b64uDec(id)})),attestation:'none',timeout:60000}})}
+  catch(e){ui.toast=e&&e.name==='InvalidStateError'?'This device is already added.':'Fingerprint or Face ID did not finish. Try again.';render();return}
+  const r=await php('POST','passkeys',{attestation:b64uEnc(c.response.attestationObject),clientData:b64uEnc(c.response.clientDataJSON)});
+  ui.toast=r.s===200?'Fingerprint or Face ID is on for this account.':((r.j&&r.j.error)||'Could not save it. Try again.');await pkLoad();render();
+}
+async function pkRemove(id){await php('POST','passkeys/'+id+'/remove',{});await pkLoad();render()}
+function pkCard(){
+  if(!USE_PHP)return '';
+  const l=ui.pk||[];
+  return `<div class="card pad form" style="margin-top:18px"><div class="sec-h"><h3>Sign in with fingerprint or Face ID</h3></div>
+  <p class="fine" style="margin-top:0">New devices need your fingerprint or face, or a Yes from a device already signed in. Your fingerprint and face stay on your device and never reach KPR Lunch.</p>
+  ${l.map(k=>`<div class="kv"><span><b>${esc(k.label)}</b><br><span class="mute small">Added ${new Date(k.created).toLocaleDateString('en-IN')}</span></span><button class="btn ghost sm" onclick="pkRemove(${k.id})">Remove</button></div>`).join('')}
+  ${ui.pkCan===false?'<p class="fine">This device has no fingerprint or Face ID. You can still say Yes from here when another device signs in.</p>':`<button class="btn lg" onclick="pkAdd()">Add this device</button>`}</div>`;
+}
+const pkBanner=()=>USE_PHP&&ui.pk&&!ui.pk.length&&ui.pkCan?`<div class="card pad paycheck" style="margin-bottom:14px"><div class="pc"><div class="pc-b"><b>Protect this counter</b><div class="mute small">Turn on fingerprint or Face ID so a stolen email code is not enough to sign in.</div></div><div class="pc-a"><button class="btn sm ok" onclick="pkAdd()">Turn on</button></div></div></div>`:'';
 async function profSave(){
   const g=lg();if(g.busy)return;
   const nm=(g.name||'').trim().replace(/\s+/g,' ');
@@ -3469,7 +3636,7 @@ async function pwLogin(){
   g.busy=true;lgBtn(true,'Checking');
   const r=await otpPost('login',{email:mail,password:pw});
   g.busy=false;
-  if(r&&r.ok&&r.step){g.step=r.step;g.ticket=r.ticket;g.secret=r.secret||'';g.uri=r.uri||'';g.tcode='';g.err='';render();return}
+  if(r&&r.ok&&r.step){secondStart(r);return}
   if(r&&r.ok){if(!phpLanded(r,mail))lgFinish(r,mail);return}
   lgBtn(false,'Log in');lgFail((r&&r.error)||'Could not log in. Try again.');
 }
@@ -3489,10 +3656,18 @@ function logout(){if(USE_PHP){php('POST','logout',{});if(navigator.credentials&&
 function qty(sid,id,d){const c=cartOf(sid);c[id]=Math.max(0,(c[id]||0)+d);if(!c[id])delete c[id];save();render()}
 function pickPay(sid,m){ui.pay[sid]=m;render()}
 function payMethod(sid){const m=ui.pay[sid]||'upi';return m==='cash'&&strikes()>=STRIKE_LIMIT?'upi':m}
-function placeOrder(sid){
+async function placeOrder(sid){
   const pre=USE_PHP&&whenOf(sid)==='tomorrow';
   if((pre?whyPre(sid):whyClosed(sid))||!cartCount(sid))return;
-  if(pre||payMethod(sid)==='upi'){ui.sheet={type:'pay',sid,paise:payPaise(sid),pre};render()}else createOrder(sid,false);
+  if(pre||payMethod(sid)==='upi'){
+    if(USE_PHP){   // ask the server first: a student must never pay for an order it would refuse
+      if(ui.placing)return;ui.placing=true;
+      const r=await php('POST','orders/check',{shop:sid,pay:'upi',items:cartLines(sid).map(l=>({id:l.id,q:l.qty})),pre});
+      ui.placing=false;
+      if(r.s!==200){ui.toast=(r.j&&r.j.error)||'Could not check your order. Try again.';render();return}
+    }
+    ui.sheet={type:'pay',sid,paise:payPaise(sid),pre};render();
+  }else createOrder(sid,false);
 }
 function newToken(sid){const used=new Set(liveOf(sid).map(o=>o.token));let t;do{t=String(1000+Math.floor(Math.random()*9000))}while(used.has(t));return t}
 function createOrder(sid,paid){
@@ -3676,7 +3851,7 @@ function shopCard(s){
 
 function control(s,it,can,small){
   const q=cartOf(s.id)[it.id]||0;
-  if(S.shops[s.id].sold[it.id])return '<span class="sold">Sold out</span>';
+  if(S.shops[s.id].sold[it.id]&&!(USE_PHP&&whenOf(s.id)==='tomorrow'))return '<span class="sold">Sold out</span>';
   if(q)return `<div class="step${small?' sm':''}"><button aria-label="Remove one" onclick="qty('${s.id}','${it.id}',-1)">−</button><span>${q}</span><button aria-label="Add one" onclick="qty('${s.id}','${it.id}',1)">+</button></div>`;
   return `<button class="add" ${can?'':'disabled'} onclick="qty('${s.id}','${it.id}',1)">Add</button>`;
 }
@@ -3742,7 +3917,7 @@ function orderPage(id){
   const o=getO(id);
   if(!o||o.roll!==S.roll)return `<main class="page narrow"><div class="card empty" style="margin-top:40px">Order not found.<br><a class="btn" href="#" style="margin-top:18px">Go home</a></div></main>`;
   const s=shopOf(o.shop),a=isActive(o);
-  const fin={collected:'Collected. This token has been used.',cancelled:o.ps==='no'?`Payment not received. ${s.name} did not get ${rsp(upiAmt(o))} in their UPI, so this order was cancelled. If money left your account, show that payment in your UPI app at the ${s.name} counter.`:o.paid?`Cancelled. ${s.name} will return your money.`:o.pay==='upi'?`Cancelled. If you had already paid, ${s.name} sends it back to your UPI.`:'Cancelled.',expired:checking(o)?'Lunch ended before the payment was confirmed.':o.pay==='cash'?'Not collected before lunch ended. Counted as a no show.':'Not collected before lunch ended. The plate was sold at the counter, no refund.'}[o.status];
+  const fin={collected:'Collected. This token has been used.',cancelled:o.ps==='no'?`Payment not received. ${s.name} did not get ${rsp(upiAmt(o))} in their UPI, so this order was cancelled. If money left your account, show that payment in your UPI app at the ${s.name} counter.`:o.refund==='done'?`Cancelled. ${s.name} has sent your money back.`:o.paid?`Cancelled. ${s.name} will return your money.`:o.pay==='upi'?`Cancelled. If you had already paid, ${s.name} sends it back to your UPI.`:'Cancelled.',expired:checking(o)?'Lunch ended before the payment was confirmed.':o.pay==='cash'?'Not collected before lunch ended. Counted as a no show.':'Not collected before lunch ended. The plate was sold at the counter, no refund.'}[o.status];
   let act='';
   if(a&&checking(o)){
     act+=`<div class="note warn"><b>Waiting for ${s.name} to confirm your payment.</b><br>They are checking that ${rsp(upiAmt(o))} reached their UPI. Your token appears here the moment they confirm. This page updates by itself.</div>`;
@@ -3753,7 +3928,7 @@ function orderPage(id){
     else if(S.now>=COMING_FROM)act+=`<button class="btn lg ok" onclick="comingNow(${o.id})">I'm coming</button><p class="fine center">Tap when you leave class. ${o.pay==='cash'?s.name+' starts cooking your order now.':s.name+' moves your order to the top.'}</p>`;
     else act+=`<div class="note">The I'm coming button opens at ${fmt(COMING_FROM)}. Tap it when you leave class${o.pay==='cash'?' so '+s.name+' starts cooking':''}.</div>`;
     if(o.status==='placed'&&!isPart(o)&&canCancel(o))act+=`<button class="btn ghost lg" onclick="cancelOrder(${o.id})">Cancel order${o.paid?', full refund':''}</button><p class="fine center">You can cancel till ${fmt(o.day>S.day?PRE_CUTOFF:CANCEL_UNTIL)}.</p>`;
-    else if(o.status==='placed'&&!isPart(o))act+=`<p class="fine center">Cancelling closed at ${fmt(CANCEL_UNTIL)}.</p>`;
+    else if(o.status==='placed'&&!isPart(o))act+=`<p class="fine center">Cancelling closed at ${fmt(o.day>S.day?PRE_CUTOFF:CANCEL_UNTIL)}.</p>`;
   }
   if(a&&o.hold)act=`<div class="note warn">On hold. ${s.name} is still preparing part of your order. Come when it shows Ready. Your token stays valid.</div>`+act;
   if(a&&isPart(o))act=`<div class="note ok">Collected so far: ${o.items.filter(i=>dOf(i)).map(i=>dOf(i)+' x '+esc(i.n)).join(', ')}. Still to collect: ${o.items.filter(i=>i.q>dOf(i)).map(i=>(i.q-dOf(i))+' x '+esc(i.n)).join(', ')}. The same token works till everything is collected.</div>`+act;
@@ -3802,6 +3977,15 @@ function sheetHtml(){
     ${d.ok?`<div class="center mute small" style="margin-top:20px">Token</div><div class="amt" style="margin-top:2px">${esc(d.token)}</div>`:''}
     <p class="center" style="margin:12px 0 4px">${d.line}</p><p class="fine center">${d.sub}</p>
     <button class="btn lg ok" onclick="closeSheet()">Done</button>`;
+  }else if(ui.sheet.type==='ask'){
+    const d=ui.sheet;
+    body=`<div class="sheet-h"><b>Is this you signing in?</b></div>
+    <p class="center" style="margin:16px 0 2px"><b>${esc(d.device)}</b></p><p class="fine center">Just now, ${new Date(d.at).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'})}</p>
+    ${d.stage===1?`<button class="btn lg ok" id="askyes" onclick="askYes()">Yes, it was me</button><button class="btn lg ghost" id="askno" style="margin-top:10px" onclick="askAnswer({no:true})">No, it was not me</button>`
+    :`<p class="center" style="margin:14px 0 10px">Tap the number showing on that screen</p><div class="ask-o">${d.opts.map(n=>`<button class="mono" onclick="askAnswer({n:${n}})">${n}</button>`).join('')}</div><button class="btn lg ghost" style="margin-top:12px" onclick="askAnswer({no:true})">No, it was not me</button>`}`;
+  }else if(ui.sheet.type==='askdone'){
+    const d=ui.sheet;
+    body=`<div class="sheet-h"><b>${d.ok?'Sign in allowed':'Sign in blocked'}</b><button class="x" onclick="closeSheet()">Close</button></div><p class="center" style="margin:18px 0 8px">${esc(d.msg)}</p><button class="btn lg ok" onclick="closeSheet()">Done</button>`;
   }else if(ui.sheet.type==='receipt'){
     body=receiptSheet();
   }else{
@@ -3841,7 +4025,7 @@ function resultHtml(){
   const o=f.o&&getO(f.o);
   if(!o)return bad('No order with token '+esc(f.t),'There is no open order with this number at this shop. Check the number with the student.');
   if(o.status==='collected')return bad('Already used','Token '+o.token+' was fully handed over at '+fmt(o.doneAt)+'.');
-  if(o.status==='cancelled')return bad('Cancelled','The student cancelled this order'+(o.paid?' and was refunded':'')+'.');
+  if(o.status==='cancelled')return bad('Cancelled','The student cancelled this order'+(o.refund==='done'?' and was refunded':o.paid?'. A refund is still to give':'')+'.');
   if(o.status==='expired')return bad('Expired','Lunch ended before this order was collected.');
   if(checking(o))return `<div class="result cash"><div class="r-lbl">Token ${o.token}, ${esc(o.roll)}</div><div class="r-big">UPI NOT CONFIRMED</div><p style="margin:0 0 16px">Open your UPI and look for exactly <b class="mono">${rsp(upiAmt(o))}</b> from ${esc(o.roll)}. Do not hand over food until you confirm it. Never accept a screenshot.</p><div class="r-acts"><button class="btn lg ok" onclick="confirmPay(${o.id},'ok')">${rsp(upiAmt(o))} received</button><button class="btn ghost lg" onclick="confirmPay(${o.id},'no')">Not received, cancel order</button></div></div>`;
   const paid=o.pay==='upi',g=giveOf(o),sel=g.reduce((a,b)=>a+b,0),amt=o.items.reduce((t,it,i)=>t+it.p*g[i],0),rest=leftOf(o)-sel,multi=leftOf(o)>1;
@@ -3865,11 +4049,11 @@ function waitCard(){
 function counterView(){
   const onway=liveOf(S.auth).filter(o=>isActive(o)&&o.coming&&!o.hold).sort((a,b)=>a.comingAt-b.comingAt||a.id-b.id);
   const keys=['1','2','3','4','5','6','7','8','9','C','0','D'];
-  return `${kpis()}<div class="counter"><div class="card pad"><div class="lbl">Token number</div>
+  return `${pkBanner()}${kpis()}<div class="counter"><div class="card pad"><div class="lbl">Token number</div>
   <div class="tbox">${[0,1,2,3].map(i=>`<span class="${ui.pad[i]?'on':i===ui.pad.length?'cur':''}">${ui.pad[i]||''}</span>`).join('')}</div>
   <div class="keys">${keys.map(k=>`<button class="key ${k==='C'||k==='D'?'fn':''}" onclick="padKey('${k}')">${k==='C'?'Clear':k==='D'?'Delete':k}</button>`).join('')}</div>
   <p class="fine center">Use the keypad or the keyboard. It checks on the 4th digit.</p></div>
-  <div class="rcol">${ui.preChecks?`<a class="card pad paycheck" style="display:block;margin-bottom:14px" href="#shop-pre"><b>${plural(ui.preChecks,'preorder')} waiting for your Yes or No</b><div class="mute small">Tap to open Preorders</div></a>`:''}${checkCard()}${resultHtml()}${waitCard()}<div class="card pad"><div class="sec-h"><h3>On the way now</h3><span class="mute small mono">${onway.length}</span></div>
+  <div class="rcol">${ui.preChecks?`<a class="card pad paycheck" style="display:block;margin-bottom:14px" href="#shop-pre"><b>${plural(ui.preChecks,'preorder')} waiting for your Yes or No</b><div class="mute small">Tap to open Preorders</div></a>`:''}${refundCard()}${checkCard()}${resultHtml()}${waitCard()}<div class="card pad"><div class="sec-h"><h3>On the way now</h3><span class="mute small mono">${onway.length}</span></div>
   ${onway.length?onway.map(o=>`<button class="ow" onclick="loadToken('${o.token}')"><span class="mono">${o.token}</span><span class="ow-b">${itemsText(o)}</span>${checking(o)?'<span class="chip warn">Check UPI</span>':o.pay==='upi'?'<span class="chip ok">Paid</span>':`<span class="chip warn">${rs(o.total)} cash</span>`}</button>`).join(''):'<p class="mute small" style="margin:0">Students who tap I\'m coming show up here, oldest first.</p>'}</div></div></div>`;
 }
 function kcard(o){
@@ -3905,19 +4089,19 @@ function settingsView(){
   return `<div class="card pad form"><label class="lbl">UPI ID</label><input class="input mono" ${USE_PHP?'readonly':''} value="${esc(st.upi)}" inputmode="email" autocapitalize="off" autocorrect="off" spellcheck="false" onchange="setField('upi',this.value)">
   <p class="fine">Student UPI payments for ${s.name} go only to this ID. Each shop has its own.</p>
   <label class="lbl" for="gstin">GSTIN</label><input id="gstin" class="input mono" value="${esc(gstinOf(S.auth))}" placeholder="Leave empty if not GST registered" autocapitalize="characters" autocorrect="off" spellcheck="false" onchange="setField('gstin',this.value)">
-  <p class="fine">Printed on every counter bill with the CGST and SGST split. Leave empty if ${s.name} is not GST registered. This demo uses a sample GSTIN.</p>
+  <p class="fine">Printed on every counter bill with the CGST and SGST split. Leave empty if ${s.name} is not GST registered.${USE_PHP?'':' This demo uses a sample GSTIN.'}</p>
   <label class="lbl">Max orders per day</label><input class="input mono" type="number" inputmode="numeric" min="1" value="${st.cap}" onchange="setField('cap',this.value)">
   <p class="fine">Students cannot order from ${s.name} once this many orders are in.</p>
   <div class="kv" style="margin-top:24px"><span><b>Taking orders</b><br><span class="mute small">Turn off if you run out or close early</span></span><label class="sw"><input type="checkbox" ${st.open?'checked':''} onchange="setField('open',this.checked)"><span></span></label></div>
-  <button class="btn ghost lg" onclick="S.auth=null;save();go('shop')">Switch to another shop</button></div>`;
+  <button class="btn ghost lg" onclick="S.auth=null;save();go('shop')">Switch to another shop</button></div>${pkCard()}`;
 }
 function shopDash(r){
   const s=shopOf(S.auth),st=S.shops[S.auth];
-  const views={pre:preView,students:studentsView,counter:counterView,orders:kitchenView,billing:billingView,closing:closingView,analytics:analyticsView,customers:customersView,menu:shopMenuView,settings:settingsView};
-  const v=views[r.name]&&(USE_PHP||(r.name!=='students'&&r.name!=='pre'))?r.name:'counter';
-  const titles={pre:'Preorders',students:'Students',counter:'Counter',orders:'Kitchen',billing:'Billing',closing:'Day closing',analytics:'Analytics',customers:'Customers',menu:'Menu',settings:'Settings'};
+  const views={pre:preView,records:recordsView,students:studentsView,counter:counterView,orders:kitchenView,billing:billingView,closing:closingView,analytics:analyticsView,customers:customersView,menu:shopMenuView,settings:settingsView};
+  const v=views[r.name]&&(USE_PHP||(r.name!=='students'&&r.name!=='pre'&&r.name!=='records'))?r.name:'counter';
+  const titles={pre:'Preorders',records:'Records',students:'Students',counter:'Counter',orders:'Kitchen',billing:'Billing',closing:'Day closing',analytics:'Analytics',customers:'Customers',menu:'Menu',settings:'Settings'};
   const links=[['counter','Counter','shop'],['orders','Kitchen','shop-orders'],['billing','Billing','shop-billing'],['closing','Closing','shop-closing'],['analytics','Analytics','shop-analytics'],['customers','Customers','shop-customers'],['menu','Menu','shop-menu'],['settings','Settings','shop-settings']];
-  if(USE_PHP){links.splice(6,0,['customers','Students','shop-students']);links.splice(2,0,['pre','Preorders','shop-pre'])}
+  if(USE_PHP){links.splice(5,0,['records','Records','shop-records']);links.splice(7,0,['students','Students','shop-students']);links.splice(2,0,['pre','Preorders','shop-pre'])}
   const pending=liveOf(S.auth).filter(o=>o.status==='placed'||o.status==='cooking').length,checks=toCheck(S.auth).length;
   const status=!st.open?'Not taking orders':ordering()?'Taking orders till '+fmt(CUTOFF):'Ordering closed';
   return `<div class="dash"><aside class="side"><div class="brandbox">${tile(s,'lg')}<div><b>${s.name}</b><div class="mute small">Counter</div></div></div>
@@ -3941,7 +4125,7 @@ function preView(){
   const d=g.data[g.tab],w=d.orders.filter(o=>o.ps==='check'),plates=d.stock.reduce((a,i)=>a+i.qty,0),money=d.stock.reduce((a,i)=>a+i.amount,0),paidQ=d.stock.reduce((a,i)=>a+i.paid,0);
   const paidTxt={yes:'Yes',no:'No',waiting:'Waiting',counter:'At counter'};
   return `<div class="seg" role="tablist" style="max-width:340px;margin-bottom:16px"><button type="button" class="${g.tab==='tomorrow'?'on':''}" onclick="pre().tab='tomorrow';render()">Tomorrow</button><button type="button" class="${g.tab==='today'?'on':''}" onclick="pre().tab='today';render()">Today</button></div>
-  ${g.err?`<div class="banner">${esc(g.err)}</div>`:''}
+  ${g.err?`<div class="banner">${esc(g.err)}</div>`:''}${refundCard()}
   <div class="kpis"><div class="kpi"><span>Orders</span><b>${d.orders.length}</b></div><div class="kpi"><span>Items to make</span><b>${plates}</b></div><div class="kpi"><span>Paid items</span><b>${paidQ}</b></div><div class="kpi"><span>Value</span><b>${rs(money)}</b></div></div>
   ${w.length?`<div class="card pad paycheck" style="margin-top:14px"><div class="sec-h"><h3>Have they paid?</h3><span class="chip warn mono">${w.length}</span></div><p class="mute small" style="margin:0 0 6px">Check that this exact amount reached your QR account. Tap Yes and the student gets their token. Tap No and the order is cancelled.</p>${w.map(o=>`<div class="pc"><div class="pc-b"><div class="pc-amt mono">Bill ${o.billNo}, ${rsp(o.upiAmt)}</div><div class="mute small">${esc(o.student.name)}, ${esc(o.student.phone)}</div><div class="mute small">${o.items.map(i=>i.q+' x '+esc(i.n)+' '+rs(i.p*i.q)).join(', ')}</div></div><div class="pc-a"><button class="btn sm ok" onclick="prePay(${o.id},'ok')">Yes, payment received</button><button class="btn sm ghost" onclick="prePay(${o.id},'no')">No</button></div></div>`).join('')}</div>`:''}
   <h2 class="h2">What to bring</h2>
@@ -3950,18 +4134,75 @@ function preView(){
   ${d.orders.length?`<h2 class="h2">Orders</h2><div class="card tblwrap"><table class="tbl"><thead><tr><th>Bill</th><th>Student</th><th>Phone</th><th>Items</th><th>Total</th><th>Paid</th><th>Token</th></tr></thead><tbody>${d.orders.map(o=>`<tr><td class="mono">${o.billNo}</td><td>${esc(o.student.name)}</td><td class="mono">${esc(o.student.phone)}</td><td>${o.items.map(i=>i.q+' x '+esc(i.n)).join(', ')}</td><td class="mono">${rs(o.total)}</td><td>${paidTxt[o.paid]||''}</td><td class="mono">${esc(o.token||'')}</td></tr>`).join('')}</tbody></table></div>`:''}`;
 }
 
+/* ---------- records: everything in the database, with filters ---------- */
+const STS=[['placed','Placed'],['cooking','Cooking'],['ready','Ready'],['collected','Collected'],['cancelled','Cancelled'],['expired','Expired']];
+const REC={orders:{l:'App orders',status:STS,pay:[['upi','QR'],['cash','Cash']],pre:1,amt:'Order value'},
+  bills:{l:'Counter bills',status:[['active','Active'],['cancelled','Cancelled']],pay:[['cash','Cash'],['upi','UPI']],amt:'Bill value'},
+  refunds:{l:'Refunds',status:[['due','To give'],['done','Given']],amt:'Refund value'},
+  customers:{l:'Customers',status:[['offers','Offers on'],['stopped','Offers off']],amt:'Spent'},
+  students:{l:'Students',noDate:1,amt:'Spent here'},
+  closings:{l:'Day closings',noSearch:1,amt:'Bills total'},
+  offers:{l:'Offers'},soldout:{l:'Sold out'},activity:{l:'Activity'}};
+const dayIso=n=>new Date(n*864e5).toISOString().slice(0,10);
+function rec(){return ui.rec||(ui.rec={type:'orders',from:dayIso(S.day-29),to:dayIso(S.day+1),q:'',status:'',pay:'',pre:'',page:1,data:null,err:'',sig:'',seq:0,sid:''})}
+function recQuery(extra){const g=rec(),p=new URLSearchParams({type:g.type});['from','to','q','status','pay','pre'].forEach(k=>{if(g[k])p.set(k,g[k])});Object.entries(extra||{}).forEach(([k,v])=>p.set(k,v));return 'shop/'+S.auth+'/records?'+p}
+async function recLoad(){
+  const g=rec(),n=++g.seq,r=await php('GET',recQuery({page:g.page}));
+  if(n!==g.seq)return;
+  if(r.s!==200){g.err=(r.j&&r.j.error)||'Could not load the records';recPaint();return}
+  const sig=JSON.stringify(r.j);g.err='';g.sid=S.auth;if(sig===g.sig)return;g.sig=sig;g.data=r.j;recPaint();
+}
+function recPaint(){const el=document.getElementById('recOut');if(el)el.innerHTML=recOut();else softRender()}
+function recSet(k,v){const g=rec();g[k]=v;g.page=1;clearTimeout(g.t);g.t=setTimeout(recLoad,k==='q'?300:0)}
+function recType(t){const g=rec();g.type=t;g.status='';g.pay='';g.pre='';g.q='';g.page=1;g.data=null;g.sig='';render();recLoad()}
+function recRange(n){const g=rec();g.to=n===1?dayIso(S.day):n?dayIso(S.day+1):'';g.from=n?dayIso(S.day-n+1):'';g.page=1;g.data=null;g.sig='';render();recLoad()}
+function recClear(){const g=rec();g.q='';g.status='';g.pay='';g.pre='';g.from='';g.to='';g.page=1;g.sig='';render();recLoad()}
+function recPage(d){const g=rec();g.page=Math.max(1,g.page+d);recLoad()}
+function recCsv(c){c=String(c==null?'':c);if(/^[=+\-@\t\r]/.test(c))c="'"+c;return /[",\n\r]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c}
+async function recExport(){
+  const g=rec();ui.toast='Preparing your file...';render();
+  const r=await php('GET',recQuery({all:1,page:1}));
+  if(r.s!==200){ui.toast=(r.j&&r.j.error)||'Could not download.';render();return}
+  const L=[r.j.cols.map(recCsv).join(',')].concat(r.j.rows.map(x=>x.map(recCsv).join(',')));
+  const u=URL.createObjectURL(new Blob(['\ufeff'+L.join('\r\n')],{type:'text/csv'})),a=document.createElement('a');
+  a.href=u;a.download=shopOf(S.auth).name.replace(/\s+/g,'-')+'-'+REC[g.type].l.replace(/\s+/g,'-')+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  ui.toast=plural(r.j.rows.length,'record')+' downloaded. It opens in Excel.';render();
+}
+function recOut(){
+  const g=rec(),d=g.data,c=REC[g.type];
+  if(g.err&&!d)return `<div class="banner">${esc(g.err)}</div>`;
+  if(!d)return '<p class="mute">Loading records...</p>';
+  const money=d.cols.reduce((o,n,i)=>{if(/^(Total|Bills total|Spent|Spent here|Cash expected|Cash counted|Difference|UPI expected)$/.test(n))o.push(i);return o},[]);
+  return `${g.err?`<div class="banner">${esc(g.err)}</div>`:''}<div class="kpis rec-k"><div class="kpi"><span>Records</span><b>${d.total.toLocaleString('en-IN')}</b><small>${g.from||g.to?'In these filters':'All time'}</small></div>${c.amt?`<div class="kpi"><span>${c.amt}</span><b>${rs(d.amount)}</b><small>${g.type==='orders'?'Cancelled left out':g.type==='bills'?'Cancelled bills left out':'For these filters'}</small></div>`:''}</div>
+  ${d.backup?`<p class="fine">${d.backup.err?'Google Sheet backup has stopped. Your database is safe and the Sheet catches up by itself once it is back.':d.backup.at?'Google Sheet backup is on. Last update '+new Date(d.backup.at).toLocaleTimeString('en-IN',{hour:'numeric',minute:'2-digit'})+'.':'Google Sheet backup is starting.'}</p>`:''}
+  <div class="card tblwrap"><table class="tbl rec-t"><thead><tr>${d.cols.map(n=>`<th>${esc(n)}</th>`).join('')}</tr></thead><tbody>${d.rows.map(r=>`<tr>${r.map((v,i)=>`<td class="${money.includes(i)?'mono':''}">${money.includes(i)?rs(v):esc(v)}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${d.cols.length}" class="mute">Nothing matches these filters.</td></tr>`}</tbody></table></div>
+  ${d.pages>1?`<div class="rec-p"><button class="btn ghost sm" ${d.page<=1?'disabled':''} onclick="recPage(-1)">Previous</button><span class="mute small">Page ${d.page} of ${d.pages}</span><button class="btn ghost sm" ${d.page>=d.pages?'disabled':''} onclick="recPage(1)">Next</button></div>`:''}`;
+}
+function recordsView(){
+  const g=rec(),c=REC[g.type];
+  if(g.sid!==S.auth&&!g.loading){g.data=null;g.sig='';g.sid=S.auth;setTimeout(recLoad,0)}
+  const sel=(k,all,opts)=>`<select class="input" aria-label="${all}" onchange="recSet('${k}',this.value)"><option value="">${all}</option>${opts.map(([v,l])=>`<option value="${v}" ${g[k]===v?'selected':''}>${l}</option>`).join('')}</select>`;
+  const preset=[[1,'Today'],[7,'7 days'],[30,'30 days'],[0,'All time']];
+  return `<div class="rec-tabs" role="tablist">${Object.entries(REC).map(([k,v])=>`<button role="tab" aria-selected="${k===g.type}" class="${k===g.type?'on':''}" onclick="recType('${k}')">${v.l}</button>`).join('')}</div>
+  <div class="card pad rec-f">
+  ${c.noDate?'':`<div class="rec-d"><label>From<input class="input" type="date" value="${esc(g.from)}" onchange="recSet('from',this.value)"></label><label>To<input class="input" type="date" value="${esc(g.to)}" onchange="recSet('to',this.value)"></label><div class="rec-pre">${preset.map(([n,l])=>`<button class="btn ghost sm" onclick="recRange(${n})">${l}</button>`).join('')}</div></div>`}
+  <div class="rec-s">${c.noSearch?'':`<input class="input" placeholder="Search" value="${esc(g.q)}" autocomplete="off" oninput="recSet('q',this.value)">`}${c.status?sel('status','Any status',c.status):''}${c.pay?sel('pay','Any payment',c.pay):''}${c.pre?sel('pre','Today and preorders',[['yes','Preorders only'],['no','Same day only']]):''}<button class="btn ghost sm" onclick="recClear()">Clear filters</button><button class="btn sm" onclick="recExport()">Download for Excel</button></div></div>
+  <div id="recOut">${recOut()}</div>`;
+}
+
 /* ---------- counter billing ---------- */
 // Prices on the menu include GST (5% for restaurants: CGST 2.5% + SGST 2.5%). Bills split the tax back out.
 const GST_DEMO={s1:'33ABCDE1234F1Z5',s2:'33PQRSX5678K1Z2'};
 const PLACE='KPR Institute of Engineering and Technology, Arasur, Coimbatore';
 const GSTIN_RE=/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
-const gstinOf = sid => {const v=S.shops[sid]&&S.shops[sid].gstin;return v===undefined?GST_DEMO[sid]||'':v};
+const gstinOf = sid => {const v=S.shops[sid]&&S.shops[sid].gstin;return v===undefined?(USE_PHP?'':GST_DEMO[sid]||''):v};
 const sum = (a,f) => a.reduce((t,x)=>t+f(x),0);
 const billsOf = (sid,day) => (S.bills||[]).filter(b=>b.sid===sid&&(day===undefined||b.day===day));
 const billOf = id => (S.bills||[]).find(b=>b.id===+id);
 function tax(total){const t=Math.round(total*100),g=Math.round(t-t/1.05),c=Math.floor(g/2);return {taxable:(t-g)/100,cgst:c/100,sgst:(g-c)/100,gst:g/100}}
 const shopIni = s => s.name.split(' ').map(w=>w[0]).join('').toUpperCase();
-function billNo(sid,n){return shopIni(shopOf(sid))+'/26-27/'+String(n||billsOf(sid).length+1).padStart(4,'0')}
+const nextSeq = sid => USE_PHP?billsOf(sid).reduce((m,b)=>Math.max(m,parseInt(String(b.no).split('/').pop())||0),(ui.maxSeq&&ui.maxSeq[sid])||0)+1:billsOf(sid).length+1;
+function billNo(sid,n){return shopIni(shopOf(sid))+'/26-27/'+String(n||nextSeq(sid)).padStart(4,'0')}
 const billDate = day => new Date(Date.now()+(day-S.day)*864e5).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
 const draft = () => ui.bill[S.auth]||(ui.bill[S.auth]={});
 function draftLines(){const s=shopOf(S.auth),d=draft();return Object.keys(d).map(id=>{const it=itemOf(s,id);return it?{id,n:it.name,p:it.price,q:d[id],veg:it.veg}:null}).filter(Boolean)}
@@ -4072,6 +4313,7 @@ function dayClose(sid){
 }
 function cboxHtml(exp){const n=ui.counted===''?null:parseInt(ui.counted);if(n===null||isNaN(n))return `<div class="cbox idle">Count the cash box and type the amount above</div>`;if(n===exp)return `<div class="cbox ok">Matches. Cash box is correct.</div>`;return `<div class="cbox warn">${n<exp?'Short by '+rs(exp-n):'Extra '+rs(n-exp)}. Check today's cash bills below.</div>`}
 function cashIn(v,exp){ui.counted=v.replace(/\D/g,'').slice(0,7);document.getElementById('cbox').innerHTML=cboxHtml(exp)}
+function closeSave(exp,upi){if(USE_PHP&&ui.counted!=='')emit({t:'closing',sid:S.auth,counted:parseInt(ui.counted)||0,exp,upi})}
 function closingText(sid){
   const s=shopOf(sid),c=dayClose(sid),t=tax(c.total),L=['*'+s.name+' day closing*',billDate(S.day)+', '+fmt(S.now),''];
   L.push('Counter cash '+rs(c.cCash),'Counter UPI '+rs(c.cUpi),'App UPI '+rs(c.aUpi),'App cash '+rs(c.aCash),'*Total sales '+rs(c.total)+'*','');
@@ -4091,7 +4333,7 @@ function closingView(){
   <a class="btn lg" href="https://wa.me/?text=${encodeURIComponent(closingText(sid))}" target="_blank" rel="noopener">Share closing on WhatsApp</a></div>
   <div class="card pad"><div class="sec-h" style="margin-bottom:4px"><h3>Cash box check</h3></div>
   <div class="mrow"><span>Cash that should be in the box</span><b class="mono">${rs(c.expCash)}</b></div>
-  <label class="lbl" for="counted" style="margin:16px 0 8px">Cash you counted</label><input id="counted" class="input mono" inputmode="numeric" autocomplete="off" placeholder="${c.expCash}" value="${esc(ui.counted||'')}" oninput="cashIn(this.value,${c.expCash})">
+  <label class="lbl" for="counted" style="margin:16px 0 8px">Cash you counted</label><input id="counted" class="input mono" inputmode="numeric" autocomplete="off" placeholder="${c.expCash}" value="${esc(ui.counted||'')}" oninput="cashIn(this.value,${c.expCash})" onchange="closeSave(${c.expCash},${c.expUpi})">
   <div id="cbox">${cboxHtml(c.expCash)}</div>
   <div class="mrow" style="margin-top:14px"><span>Your UPI should show for today</span><b class="mono">${rs(c.expUpi)}</b></div>
   ${g?`<div class="sec-h" style="margin:22px 0 4px"><h3>GST summary</h3><span class="mute small mono">${esc(g)}</span></div><div class="mrow"><span>Taxable value</span><span class="mono">${rsp(t.taxable)}</span></div><div class="mrow"><span>CGST 2.5%</span><span class="mono">${rsp(t.cgst)}</span></div><div class="mrow"><span>SGST 2.5%</span><span class="mono">${rsp(t.sgst)}</span></div>`:''}</div></div>
@@ -4152,8 +4394,23 @@ function anAgg(days){
   const full=days.filter(x=>!x.today&&x.c+x.a>0);t.fullN=full.length;t.fullS=sum(full,x=>x.c+x.a);t.dayAvg=t.fullN?t.fullS/t.fullN:0;
   return t;
 }
+// PHP build: real numbers from the database, never samples. Today comes from the same place, so nothing is counted twice.
+function anS(){return ui.an||(ui.an={days:null,key:'',src:'all',sig:'',err:'',busy:false})}
+async function anLoad(){
+  const g=anS(),R=ui.ar||30,key=S.auth+'|'+R+'|'+g.src;
+  if(g.busy)return;g.busy=true;
+  try{
+    const r=await php('GET','shop/'+S.auth+'/analytics?days='+R*2+'&source='+g.src);
+    if(key!==S.auth+'|'+(ui.ar||30)+'|'+g.src)return;
+    if(r.s!==200){g.err=(r.j&&r.j.error)||'Could not load the numbers';softRender();return}
+    const sig=JSON.stringify(r.j.days);g.key=key;g.err='';
+    if(sig===g.sig)return;g.sig=sig;
+    g.days=r.j.days.map(x=>{const d=dayStrNum(x.day);return Object.assign(x,{d,today:d===S.day})});softRender();
+  }finally{g.busy=false}
+}
+function anSrc(v){anS().src=v;anS().days=null;anS().sig='';render();anLoad()}
 function anData(sid){
-  const all=anHist(sid).concat([anToday(sid)]),R=ui.ar||30;
+  const all=USE_PHP?anS().days:anHist(sid).concat([anToday(sid)]),R=ui.ar||30;
   const cur=all.filter(x=>x.d>S.day-R),prev=all.filter(x=>x.d<=S.day-R&&x.d>S.day-2*R);
   return {R,cur,a:anAgg(cur),p:anAgg(prev)};
 }
@@ -4189,8 +4446,10 @@ function anCsv(sid){
   el.href=u;el.download=shopOf(sid).name.replace(/\s+/g,'-')+'-sales-last-'+D.R+'-days.csv';document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
   ui.toast='Sales sheet downloaded. It opens in Excel, ready for your CA.';render();
 }
-function anRange(n){ui.ar=n;render()}
+function anRange(n){ui.ar=n;if(USE_PHP){anS().days=null;anS().sig='';render();anLoad()}else render()}
 function analyticsView(){
+  if(USE_PHP){const g=anS(),key=S.auth+'|'+(ui.ar||30)+'|'+g.src;
+    if(!g.days||g.key!==key){setTimeout(anLoad,0);return g.err?`<div class="banner">${esc(g.err)}</div>`:'<p class="mute">Loading your numbers...</p>'}}
   const sid=S.auth,D=anData(sid),a=D.a,p=D.p,R=D.R,tk=a.bills+a.orders;
   const daily=D.cur.map(x=>({segs:[x.c,x.a],label:x.today?'Today':dShort(x.d),today:x.today,tip:`${x.today?'Today, so far':WD[x.wd]+' '+dShort(x.d)}\nTotal ${rsk(x.c+x.a)}\nCounter ${rsk(x.c)}\nApp ${rsk(x.a)}`}));
   const wds=[1,2,3,4,5,6].map(k=>{const v=a.wd[k];const avg=v?v.s/v.n:0;return {segs:[avg],label:WD[k],mark:avg?rsc(avg):'',tip:`${WDL[k]}\nAverage ${rsk(avg)}${v?'\n'+v.n+' days':''}`}});
@@ -4200,15 +4459,16 @@ function analyticsView(){
   const cs=custsOf(sid),yrs=YEARS.map(y=>{const l=cs.filter(c=>c.year===y);return {y,n:l.length,s:sum(l,c=>c.spent)}}),ymax=Math.max(...yrs.map(x=>x.n),1);
   const reg=cs.filter(c=>c.visits>=3).length,lapsed=cs.filter(c=>S.day-c.last>=3).length;
   const ins=anInsights(sid,D),avgBill=tk?a.total/tk:0,pAvg=(p.bills+p.orders)?p.total/(p.bills+p.orders):0,sh=pctOf(a.a,a.total),psh=pctOf(p.a,p.total);
-  return `<div class="an-top"><div class="seg an-seg"><button class="${R===7?'on':''}" onclick="anRange(7)">Last 7 days</button><button class="${R===30?'on':''}" onclick="anRange(30)">Last 30 days</button></div>
+  return `<div class="an-top"><div class="seg an-seg" ${USE_PHP?'style="grid-template-columns:repeat(3,1fr)"':''}><button class="${R===7?'on':''}" onclick="anRange(7)">Last 7 days</button><button class="${R===30?'on':''}" onclick="anRange(30)">Last 30 days</button>${USE_PHP?`<button class="${R===90?'on':''}" onclick="anRange(90)">Last 90 days</button>`:''}</div>
+  ${USE_PHP?`<div class="seg an-seg" style="grid-template-columns:repeat(3,1fr)">${[['all','All sales'],['counter','Counter'],['app','App']].map(([k,l])=>`<button class="${anS().src===k?'on':''}" onclick="anSrc('${k}')">${l}</button>`).join('')}</div>`:''}
   <button class="btn ghost an-dl" onclick="anCsv('${sid}')">Download sales for your CA</button></div>
   <div class="kpis"><div class="kpi"><span>Sales, ${R} days</span><b>${rsk(a.total)}</b><small>Per day ${trend(a.dayAvg,p.dayAvg).toLowerCase()} on the ${R} days before</small></div>
   <div class="kpi"><span>Average day</span><b>${rsk(a.dayAvg)}</b><small>${a.fullN} full days, today not counted</small></div>
   <div class="kpi"><span>Average bill</span><b>${rsk(avgBill)}</b><small>${trend(avgBill,pAvg)} on before</small></div>
   <div class="kpi"><span>App share</span><b>${sh}%</b><small>${psh?'Was '+psh+'% before':'Of all sales'}</small></div></div>
   ${ins.length?`<div class="card pad an-ins"><div class="sec-h" style="margin-bottom:2px"><h3>What to do this week</h3><span class="mute small">Worked out from your sales</span></div>${ins.map((t,i)=>`<div class="ins"><span class="ins-n">${i+1}</span><p>${t}</p></div>`).join('')}</div>`:''}
-  <div class="card pad an-card"><div class="sec-h"><h3>Sales by day</h3><div class="lg"><span><i class="s1"></i>Counter</span><span><i class="s2"></i>App</span></div></div>
-  ${barChart(daily,{every:R===7?1:5,last:true})}
+  <div class="card pad an-card"><div class="sec-h"><h3>Sales by day</h3><div class="legend"><span><i class="s1"></i>Counter</span><span><i class="s2"></i>App</span></div></div>
+  ${barChart(daily,{every:R===7?1:R===30?5:15,last:true})}
   <details class="an-tbl"><summary>See the daily numbers</summary><div class="tblwrap"><table class="tbl"><thead><tr><th>Date</th><th>Counter</th><th>App</th><th>Total</th></tr></thead><tbody>${D.cur.slice().reverse().map(x=>`<tr><td>${x.today?'Today':WD[x.wd]+' '+dShort(x.d)}</td><td class="mono">${rsk(x.c)}</td><td class="mono">${rsk(x.a)}</td><td class="mono" style="color:var(--hi)">${rsk(x.c+x.a)}</td></tr>`).join('')}</tbody></table></div></details></div>
   <div class="cgrid an-two"><div class="card pad an-card"><div class="sec-h"><h3>Busy times</h3><span class="mute small">Average sales every 15 minutes</span></div>${barChart(slots,{every:2,short:true})}</div>
   <div class="card pad an-card"><div class="sec-h"><h3>Best days</h3><span class="mute small">Average sales by weekday</span></div>${barChart(wds,{short:true})}</div></div>
@@ -4220,7 +4480,7 @@ function analyticsView(){
   <div class="card pad"><div class="sec-h" style="margin-bottom:6px"><h3>Who buys</h3><a class="fine" style="margin:0" href="#shop-customers">${cs.length} saved customers</a></div>
   ${yrs.map(x=>`<div class="hb" data-tip="${esc(x.y+'\n'+x.n+' customers\nSpent '+rsk(x.s))}"><span>${x.y}</span><div class="hb-t"><i style="width:${x.n/ymax*100}%"></i></div><span class="mono small">${x.n}</span></div>`).join('')}
   <div class="mrow" style="margin-top:10px"><span>Regulars, 3 or more visits</span><b class="mono">${reg}</b></div><div class="mrow"><span>Not seen for 3 days or more</span><b class="mono">${lapsed}</b></div></div></div>
-  <p class="fine" style="margin-top:18px">Demo: days before today are sample numbers so the charts have history. Today is real, from your bills and app orders, and updates as you bill.</p>`;
+  <p class="fine" style="margin-top:18px">${USE_PHP?'Real numbers from your database. They refresh by themselves.':'Demo: days before today are sample numbers so the charts have history. Today is real, from your bills and app orders, and updates as you bill.'}</p>`;
 }
 
 /* ---------- n8n backend (n8n.luvias.in, workflow "KPR Lunch Backend") ----------
@@ -4233,12 +4493,14 @@ const STUDENT_LINK='rgokulkrishna44-debug.github.io/kpr-lunch/student.html';
 const apiAt={};
 function apiPost(path,data){const key=pinOf(data.sid);if(!key)return Promise.resolve(null);return fetch(API+'/'+path,{method:'POST',body:new URLSearchParams(Object.assign({key},data))}).then(r=>r.json()).catch(()=>null)}
 function pushCust(c){
+  if(USE_PHP){emit({t:'cust',cu:c});return Promise.resolve(null)}
   if(!pinOf(c.sid)){ui.api='pin';return Promise.resolve(null)}
   return apiPost('customer',{sid:c.sid,phone:c.phone,name:c.name,year:c.year||'',ok:String(!!c.ok),visits:c.visits,spent:c.spent,first:c.first,last:c.last}).then(r=>{
     if(r&&r.tk){const x=custBy(c.sid,c.phone);if(x&&(x.tk!==r.tk||x.stopped!==r.stopped)){x.tk=r.tk;x.stopped=!!r.stopped;save()}}
     ui.api=r&&r.ok?'ok':r&&r.message?'bad':'off';return r});
 }
 async function pullCusts(sid,force){
+  if(USE_PHP)return phpData(sid,force);
   if(!force&&Date.now()-(apiAt[sid]||0)<15000)return;apiAt[sid]=Date.now();
   const key=pinOf(sid);if(!key){if(ui.api!=='pin'){ui.api='pin';render()}return}
   let r;try{r=await fetch(API+'/customers?sid='+sid+'&key='+encodeURIComponent(key)).then(x=>x.json())}catch(e){r=null}
@@ -4254,16 +4516,22 @@ async function pullCusts(sid,force){
 async function setPin(sid){
   const el=document.getElementById('pin'),v=(el&&el.value||'').replace(/\D/g,'');if(!v)return;
   try{localStorage.setItem('kprlunch_pin_'+sid,v)}catch(e){}
+  if(USE_PHP){
+    let r;try{r=await fetch(API+'/customers?sid='+sid+'&key='+encodeURIComponent(v)).then(x=>x.json())}catch(e){r=null}
+    if(r&&Array.isArray(r.customers)){legacyCusts(sid);ui.toast='Automatic WhatsApp is on for this device.'}
+    else{try{localStorage.removeItem('kprlunch_pin_'+sid)}catch(e){};ui.toast='That PIN is not right for '+shopOf(sid).name+'.'}
+    render();return;
+  }
   ui.api='wait';render();await pullCusts(sid,true);
   if(ui.api==='bad'){try{localStorage.removeItem('kprlunch_pin_'+sid)}catch(e){};ui.toast='That PIN is not right for '+shopOf(sid).name+'.';render();return}
   const todo=custsOf(sid).filter(c=>!c.tk);for(const c of todo)await pushCust(c);
   ui.toast='Customer list unlocked on this device.';render();
 }
-function forgetPin(sid){try{localStorage.removeItem('kprlunch_pin_'+sid)}catch(e){};ui.api='pin';S.custs=(S.custs||[]).filter(c=>c.sid!==sid);save();render()}
-const pinCard = sid => `<div class="card pad" style="margin-bottom:18px"><div class="sec-h" style="margin-bottom:6px"><h3>${ui.api==='bad'?'PIN not accepted':'Unlock your customer list'}</h3></div>
+function forgetPin(sid){try{localStorage.removeItem('kprlunch_pin_'+sid)}catch(e){};if(USE_PHP){render();return}ui.api='pin';S.custs=(S.custs||[]).filter(c=>c.sid!==sid);save();render()}
+const pinCard = sid => USE_PHP?`<details class="card pad" style="margin-bottom:18px"><summary class="mute small">Send bills and offers on WhatsApp automatically</summary><p class="mute small" style="margin:10px 0 12px">Type ${esc(shopOf(sid).name)}'s shop PIN once on this device. Your customer list works without it.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><input id="pin" class="input mono" style="flex:1;min-width:160px" inputmode="numeric" autocomplete="off" placeholder="8 digit PIN" onkeydown="if(event.key==='Enter')setPin('${sid}')"><button class="btn ok" style="width:auto;padding:0 22px" onclick="setPin('${sid}')">Turn on</button></div></details>`:`<div class="card pad" style="margin-bottom:18px"><div class="sec-h" style="margin-bottom:6px"><h3>${ui.api==='bad'?'PIN not accepted':'Unlock your customer list'}</h3></div>
   <p class="mute small" style="margin:0 0 12px">Student names and numbers are kept on the KPR Lunch server. Type ${esc(shopOf(sid).name)}'s shop PIN once on this device to see them and send offers.</p>
   <div style="display:flex;gap:10px;flex-wrap:wrap"><input id="pin" class="input mono" style="flex:1;min-width:160px" inputmode="numeric" autocomplete="off" placeholder="8 digit PIN" onkeydown="if(event.key==='Enter')setPin('${sid}')"><button class="btn ok" style="width:auto;padding:0 22px" onclick="setPin('${sid}')">Unlock</button></div></div>`;
-const stopLink = c => c&&c.tk?API+'/stop?s='+c.sid+'&t='+c.tk:'';
+const stopLink = c => c&&c.tk?(USE_PHP?PHP.replace(/\/$/,'')+'/stop':API+'/stop')+'?s='+c.sid+'&t='+c.tk:'';
 const offDefault = sid => `hi {name}, ${shopOf(sid).name.toLowerCase()} here.
 today only, any ${sid==='s1'?'biryani':'fried rice'} comes with a free ${sid==='s1'?'tea':'rose milk'}.
 just show this message at the counter before 1:45 pm.
@@ -4343,7 +4611,7 @@ async function offShare(){
 function customersView(){
   if(ui.off.msg===undefined)ui.off.msg=offDefault(S.auth);
   const sid=S.auth,all=custsOf(sid),q=(ui.cq||'').trim().toLowerCase(),fy=ui.cy||'';
-  const lock=!pinOf(sid)||ui.api==='bad'?pinCard(sid):'';
+  const lock=USE_PHP?(pinOf(sid)?'':pinCard(sid)):!pinOf(sid)||ui.api==='bad'?pinCard(sid):'';
   const okN=all.filter(c=>c.ok).length,reg=all.filter(c=>c.visits>=3).length,newW=all.filter(c=>S.day-c.first<7).length;
   const list=all.filter(c=>(!fy||c.year===fy)&&(!q||c.name.toLowerCase().includes(q)||c.phone.includes(q))).sort((a,b)=>b.last-a.last||b.visits-a.visits);
   const aud=audience(),camp=ui.off.run&&(S.camps||[]).find(c=>c.id===ui.off.run);
@@ -4366,7 +4634,7 @@ function customersView(){
     <label class="lbl" for="offto" style="margin-top:16px">Send to</label>
     <select id="offto" class="input" onchange="ui.off.to=this.value;render()">${tos.map(([v,l])=>`<option value="${v}" ${(ui.off.to||'all')===v?'selected':''}>${l}</option>`).join('')}</select>
     <button id="offgo" class="btn lg ok" ${aud.length&&(ui.off.msg||'').trim()?'':'disabled'} onclick="offSend()">Send to ${plural(aud.length,'customer')}</button>
-    <p class="fine">Only customers who agreed to get offers and have not tapped stop are included. ${ui.api==='ok'?'Customer list saved on the KPR Lunch server. <a href="#shop-customers" onclick="forgetPin(\''+sid+'\');return false">Lock this device</a>':ui.api==='off'?'Server not reachable, using the list on this device.':ui.api==='pin'||ui.api==='bad'?'Locked. Type the shop PIN above to save customers on the server.':'Connecting to the server.'}</p></div>`;
+    <p class="fine">Only customers who agreed to get offers and have not tapped stop are included. ${USE_PHP?'Customer list saved in the KPR Lunch database.':ui.api==='ok'?'Customer list saved on the KPR Lunch server. <a href="#shop-customers" onclick="forgetPin(\''+sid+'\');return false">Lock this device</a>':ui.api==='off'?'Server not reachable, using the list on this device.':ui.api==='pin'||ui.api==='bad'?'Locked. Type the shop PIN above to save customers on the server.':'Connecting to the server.'}</p></div>`;
   const past=(S.camps||[]).filter(c=>c.sid===sid).slice().reverse().slice(0,4);
   return `${lock}<div class="kpis"><div class="kpi"><span>Customers</span><b>${all.length}</b><small>${newW} new this week</small></div><div class="kpi"><span>Said yes to offers</span><b>${okN}</b></div><div class="kpi"><span>Regulars</span><b>${reg}</b><small>3 or more visits</small></div><div class="kpi"><span>Offers sent</span><b>${sum((S.camps||[]).filter(c=>c.sid===sid),c=>c.sent.length)}</b></div></div>
   <div class="custs"><div>
@@ -4427,12 +4695,15 @@ function tipAt(e){const t=e.target.closest&&e.target.closest('[data-tip]');if(!t
 document.addEventListener('mousemove',tipAt);document.addEventListener('focusin',tipAt);
 document.addEventListener('click',e=>{if(e.target.closest('[data-tip]'))tipAt(e);else tipEl.style.opacity=0});
 addEventListener('scroll',()=>tipEl.style.opacity=0,{passive:true});
+let tick=0;
 if(USE_PHP){
   phpClock();
   if(MODE==='student'&&getTok()&&S.role==='admin'&&!S.roll)toShopPage();
   else{phpRestore();autoSignIn()}
   php('GET','clock').then(r=>{if(r.s===200&&r.j.noTimers){clockOff();softRender()}});
-  setInterval(()=>{if(document.hidden)return;if(phpClock()&&!ui.lg)softRender();phpSync();if(MODE==='shop'&&location.hash==='#shop-pre'&&S.auth)preLoad()},MODE==='shop'?3000:5000);
+  setInterval(()=>{if(document.hidden)return;if(phpClock()&&!ui.lg)softRender();phpSync();
+    if(MODE==='shop'&&S.role==='admin'&&getTok()){askPoll();if(ui.pk===undefined){ui.pk=null;pkLoad()}}
+    if(MODE==='shop'&&S.auth&&S.role==='admin'){tick++;pullCusts(S.auth);if(location.hash==='#shop-pre')preLoad();if(location.hash==='#shop-records'&&tick%3===0)recLoad();if(location.hash==='#shop-analytics'&&tick%10===0)anLoad()}},MODE==='shop'?3000:5000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){phpClock();phpSync()}});
 }
 render();
