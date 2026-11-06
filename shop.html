@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://lunch-api.luvias.in https://n8n.luvias.in https://ntfy.sh wss://ntfy.sh; object-src 'none'; base-uri 'none'; form-action 'self'">
+<script>if(top!==self)top.location=self.location.href</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F4F1EB">
 <title>KPR Lunch</title>
@@ -158,7 +160,7 @@ section{margin-top:44px}
 .lc-sub{font-size:14px;opacity:.7;margin-top:4px}
 .lc-right{display:flex;flex-direction:column;align-items:flex-end;gap:14px}
 .lc-go{font-size:14px;font-weight:600;display:flex;align-items:center;gap:4px}
-.shops{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.shops{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .shop{display:block;background:var(--s1);border:1px solid var(--line);border-radius:24px;padding:22px;transition:transform .2s,border-color .2s,background .2s;text-align:left;width:100%}
 @media(hover:hover){.shop:hover{border-color:var(--line2);background:#fff}}
 .shop:active{transform:scale(.985)}
@@ -296,13 +298,14 @@ section{margin-top:44px}
 .kv b.bad{color:var(--bad)}
 
 /* shop picker */
-.pick{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:28px 0}
+.pick{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:28px 0}
 
 /* dashboard */
 .dash{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
 .side{border-right:1px solid var(--line);padding:calc(22px + var(--sat)) 16px var(--sab) max(16px,var(--sal));position:sticky;top:0;height:100vh;height:100dvh;display:flex;flex-direction:column;background:rgba(244,241,235,.7)}
 .brandbox{display:flex;gap:12px;align-items:center;padding:4px 8px 28px}
 .brandbox b{color:var(--hi);font-size:16px}
+.brandbox .tile{justify-items:center;text-align:center}
 .side nav{display:grid;gap:4px}
 .side nav a{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:14px;color:var(--mute);font-weight:500;font-size:15px;transition:background .2s,color .2s;white-space:nowrap}
 .side nav a:hover{background:var(--s1);color:var(--text)}
@@ -375,7 +378,7 @@ section{margin-top:44px}
 .kc-t .mono{font-size:22px;margin-right:auto;color:var(--hi);font-weight:600}
 .kc-i{margin:12px 0;font-size:15px;display:grid;gap:4px;color:var(--text)}
 .kc-i b{display:inline-block;min-width:24px;font-family:var(--mono);color:var(--hi)}
-.kc-f{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.kc-f{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .kc-f .mono{font-size:12px;color:var(--mute)}
 .tblwrap{overflow-x:auto}
 .tbl{width:100%;border-collapse:collapse;font-size:14px}
@@ -425,7 +428,7 @@ section{margin-top:44px}
 
 /* counter billing */
 .billing{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;align-items:start}
-.baside{position:sticky;top:20px;display:grid;gap:14px}
+.baside{position:sticky;top:20px;display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
 .bsearch{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line2);border-radius:16px;padding:0 16px;color:var(--mute)}
 .bsearch input{border:0;outline:0;font:inherit;font-size:16px;padding:13px 0;flex:1;min-width:0;background:transparent;color:var(--hi)}
 .bcats{display:flex;gap:6px;overflow-x:auto;padding:12px 0;scrollbar-width:none}
@@ -439,7 +442,14 @@ section{margin-top:44px}
 .bt:disabled{opacity:.45;cursor:not-allowed}
 .bt-n{font-weight:600;font-size:14.5px;color:var(--hi);line-height:1.3;display:flex;gap:7px;align-items:flex-start;padding-right:22px}
 .bt-n .veg{margin-top:3px;flex:none}
-.bt-p{font-size:13.5px;color:var(--mute)}
+.bt-p{font-size:13.5px;color:var(--mute);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bt-c{font-weight:700;font-size:12.5px;color:var(--hi);background:var(--s2);border-radius:7px;padding:2px 7px}
+.bcode{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line2);border-radius:16px;padding:8px 8px 8px 16px;margin-bottom:6px}
+.bcode label{font-size:13.5px;font-weight:600;color:var(--mute);white-space:nowrap}
+.bcode input{width:72px;flex:none;border:1px solid var(--line2);border-radius:11px;background:var(--bg);color:var(--hi);font-size:24px;font-weight:700;letter-spacing:.08em;text-align:center;padding:7px 4px;outline:0}
+.bcode input:focus{border-color:var(--text);box-shadow:0 0 0 1px var(--text)}
+.bcode .btn{margin:0 0 0 auto;width:auto;padding:0 18px;min-height:48px;white-space:nowrap}
+.bmsg{min-height:20px;margin:0 0 10px;font-size:13px;color:var(--mute)}.bmsg.bad{color:#A23B2A;font-weight:600}
 .bt em{position:absolute;top:9px;right:9px;font:700 12px var(--mono);font-style:normal;background:var(--text);color:var(--bg);border-radius:99px;min-width:24px;height:24px;display:grid;place-items:center;padding:0 6px}
 @media(hover:hover){.bt:not(:disabled):hover{border-color:var(--line2);background:#fff}}
 .bl{display:grid;margin:4px 0 10px}
@@ -2938,7 +2948,7 @@ document.title = MODE === 'shop' ? 'KPR Lunch Counter' : 'KPR Lunch';
 let LUNCH_START = 775, LUNCH_END = 825, CUTOFF = 750, CANCEL_UNTIL = 760, COMING_FROM = 770, PRE_CUTOFF = 1260;
 const STRIKE_LIMIT = 2;
 function clockOff(){LUNCH_END=1439;CUTOFF=1439;CANCEL_UNTIL=1439;COMING_FROM=0;PRE_CUTOFF=1439}   // testing period, the server says so at GET clock
-const PILLS = [['#0D4C3C','#F4F1EB'],['#7BA05B','#082F25']];
+const PILLS = [['#0D4C3C','#F4F1EB'],['#7BA05B','#082F25'],['#C9A227','#082F25']];
 
 // Menu rows are [name, price, veg, bestseller]
 const SHOPS = [
@@ -2956,9 +2966,14 @@ const SHOPS = [
   ['Fried rice and noodles',[['Veg fried rice',70,1],['Egg fried rice',80,0,1],['Chicken fried rice',100,0],['Gobi fried rice',80,1],['Veg noodles',70,1],['Egg noodles',80,0]]],
   ['Tiffin',[['Plain dosa',40,1],['Masala dosa',55,1,1],['Idli (3)',30,1],['Poori (2)',40,1]]],
   ['Juices and drinks',[['Muskmelon juice',40,1],['Lime soda',25,1],['Nannari sarbath',25,1],['Rose milk',30,1,1],['Buttermilk',15,1]]],
-  ['Desserts',[['Gulab jamun (2)',20,1],['Fruit salad',50,1],['Kesari',25,1],['Vanilla cup',30,1],['Kulfi',25,1]]]]}
+  ['Desserts',[['Gulab jamun (2)',20,1],['Fruit salad',50,1],['Kesari',25,1],['Vanilla cup',30,1],['Kulfi',25,1]]]]},
+ {id:'s3',n:3,ini:'G',name:'German Cafe',short:'German Cafe',tag:'Pretzels, bratwurst, schnitzel, cakes and coffee',upi:'9363982003@ibl',upiName:'GOKULAKRISHNAN R',special:'Chicken bratwurst with fries',menu:[
+  ['Savoury',[['Soft pretzel',40,1,1],['Cheese pretzel',60,1],['Potato pancakes',70,1],['Potato salad',60,1],['Chicken bratwurst with fries',140,0,1],['Chicken schnitzel',150,0]]],
+  ['Buns',[['Cheese and tomato bun',70,1],['Egg salad bun',70,0],['Chicken schnitzel bun',110,0,1]]],
+  ['Cakes and bakes',[['Apple strudel',80,1,1],['Black forest cake',80,1,1],['Cheesecake',90,1],['Butter cookies (4)',40,1]]],
+  ['Coffee and drinks',[['Coffee',30,1],['Cappuccino',60,1,1],['Cafe latte',70,1],['Hot chocolate',70,1],['Iced tea',50,1],['Apple soda',50,1]]]]}
 ];
-SHOPS.forEach(s=>{s.items=[];s.menu=s.menu.map(([cat,list],ci)=>({cat,items:list.map(([name,price,veg,best],ii)=>{const it={id:s.id+'-'+ci+'-'+ii,name,price,veg:!!veg,best:!!best};s.items.push(it);return it})}))});
+SHOPS.forEach(s=>{s.items=[];s.menu=s.menu.map(([cat,list],ci)=>({cat,items:list.map(([name,price,veg,best],ii)=>{const it={id:s.id+'-'+ci+'-'+ii,code:''+(ci+1)+(ii+1),name,price,veg:!!veg,best:!!best};s.items.push(it);return it})}))});
 const shopOf = id => SHOPS.find(s=>s.id===id);
 const itemOf = (s,id) => s.items.find(i=>i.id===id);
 
@@ -3099,7 +3114,7 @@ function connect(){
   es.onerror=()=>{const was=net.on;net.on=false;es.close();if(was)softRender();setTimeout(connect,Math.min(15000,1500*++retry))};
 }
 // Do not redraw under someone who is typing; draw as soon as they leave the field.
-function softRender(){const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA)$/.test(a.tagName)){pendingRender=true;return}render()}
+function softRender(){const a=document.activeElement;if(a&&a.id==='bcode'&&!a.value){render();const n=document.getElementById('bcode');if(n)n.focus({preventScroll:true});return}if(a&&/^(INPUT|TEXTAREA)$/.test(a.tagName)){pendingRender=true;return}render()}
 document.addEventListener('focusout',()=>{if(pendingRender){pendingRender=false;setTimeout(render,60)}});
 window.addEventListener('online',()=>{flush();connect()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){flush();if(!net.on)connect()}});
@@ -3128,7 +3143,7 @@ async function phpRestore(){
   if(MODE==='shop'&&S.role==='admin')return;
   const r=await php('GET','me');
   if(r.s!==200||!r.j.user)return;
-  const u=r.j.user;
+  const u=r.j.user;if(u.lk&&S.lk!==u.lk){S.lk=u.lk;save()}
   if(u.role==='admin'&&MODE==='student'&&S.roll){setTok('');phpExpired();return}   // old shared sign in left a shop token on the student page
   if(u.role==='admin'){
     S.email=u.email;S.role='admin';S.scope=u.shop||'';S.auth=S.scope&&S.scope!=='*'?S.scope:null;save();
@@ -3147,6 +3162,7 @@ function mapOrder(x,shopSide){
   const o={id:x.id,day:dayStrNum(x.day),roll:shopSide?((x.student&&x.student.name)||'Student'):S.roll,shop:x.shop,
     items:x.items.map(i=>{const r={id:i.id,n:i.n,p:i.p,q:i.q};if(i.d)r.d=i.d;return r}),
     total:x.total,pay:x.pay,paid:x.pay==='upi'&&x.ps==='ok',status:x.status,coming:!!x.coming,token:x.token||'',bill:x.billNo||0,walk:!!x.walk,pre:!!x.pre,at:istMin(x.created),hold:!!x.hold};
+  if(x.lk){o.lk=x.lk;o.ph=(x.student&&x.student.phone)||''}
   if(x.ps==='check'||x.ps==='ok'||x.ps==='no')o.ps=x.ps;
   if(x.refund)o.refund=x.refund;
   if(x.pay==='upi'&&x.upiAmt)o.upiAmt=x.upiAmt;
@@ -3401,6 +3417,7 @@ const ICON = {
   billing:sv('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>'),
   customers:sv('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>'),
   analytics:sv('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
+  counts:sv('<path d="M5 20V10M12 20V4M19 20v-7"/>'),
   closing:sv('<path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/>'),
   pre:sv('<path d="M4 7h16v13H4zM4 11h16M9 4v5M15 4v5"/>'),
   settings:sv('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>')
@@ -3430,7 +3447,7 @@ function route(){
 }
 function go(h){if(location.hash.slice(1)===h){render();window.scrollTo(0,0);return}location.hash=h}
 function back(fb){if(depth>0){history.back();return}go(fb)}
-window.addEventListener('hashchange',()=>{depth++;ui.sheet=null;ui.q='';render();window.scrollTo(0,0)});
+window.addEventListener('hashchange',()=>{depth++;ui.sheet=null;ui.q='';render();window.scrollTo(0,0);if(location.hash==='#shop-billing')bFocus()});
 
 /* ---------- student actions ---------- */
 const who = () => (S.name||'').trim().split(' ')[0]||(S.email||'').split('@')[0];
@@ -3653,7 +3670,7 @@ async function autoSignIn(){
 }
 /* test and demo helper: sign in without email */
 function setRoll(v){S.roll=v;S.email=v.toLowerCase()+'@demo.test';S.name=S.name||v;S.phone=S.phone||'9000000000';save();go('')}
-function logout(){if(USE_PHP){php('POST','logout',{});if(navigator.credentials&&navigator.credentials.preventSilentAccess)navigator.credentials.preventSilentAccess().catch(()=>{});setTok('');S.role='';S.scope='';S.auth=null;S.orders=[];syncSig=''}S.roll='';S.email='';S.name='';S.phone='';ui.lg=null;ui.sheet=null;save();go('')}
+function logout(){if(USE_PHP){php('POST','logout',{});if(navigator.credentials&&navigator.credentials.preventSilentAccess)navigator.credentials.preventSilentAccess().catch(()=>{});setTok('');S.role='';S.scope='';S.auth=null;S.orders=[];S.lk='';ui.lkAsked=false;syncSig=''}S.roll='';S.email='';S.name='';S.phone='';ui.lg=null;ui.sheet=null;save();go('')}
 function qty(sid,id,d){const c=cartOf(sid);c[id]=Math.max(0,(c[id]||0)+d);if(!c[id])delete c[id];save();render()}
 function pickPay(sid,m){ui.pay[sid]=m;render()}
 function payMethod(sid){const m=ui.pay[sid]||'upi';return m==='cash'&&strikes()>=STRIKE_LIMIT?'upi':m}
@@ -3765,8 +3782,14 @@ document.addEventListener('keydown',e=>{
     if(e.code==='KeyT'){e.preventDefault();ui.demo=!ui.demo;ui.dockMin=false;render();return}
     if(e.code==='KeyD'){e.preventDefault();ui.dockMin=!ui.dockMin;ui.demo=false;render();return}
   }
-  if(e.key==='Escape'&&(ui.demo||ui.sheet)){ui.demo=false;ui.sheet=null;render();return}
+  if(e.key==='Escape'&&(ui.demo||ui.sheet)){ui.demo=false;ui.sheet=null;render();bFocus();return}
   const r=route();
+  // Billing by dish code: a digit anywhere goes to the code box, and starts the next bill when a receipt is open.
+  if(r.shop&&S.auth&&r.name==='billing'&&!/^(INPUT|TEXTAREA)$/.test(e.target.tagName)&&!e.altKey&&!e.metaKey&&!e.ctrlKey){
+    const rc=ui.sheet&&ui.sheet.type==='receipt';
+    if(/^[0-9]$/.test(e.key)&&(!ui.sheet||rc)){e.preventDefault();if(rc){ui.sheet=null;render()}const b=document.getElementById('bcode');if(b){b.focus({preventScroll:true});b.value=e.key}return}
+    if(e.key==='Enter'&&rc&&e.target.tagName==='BODY'){e.preventDefault();ui.sheet=null;render();bFocus();return}
+  }
   if(!r.shop||!S.auth||r.name!=='counter'||e.target.tagName==='INPUT'||e.altKey||e.metaKey||e.ctrlKey)return;
   if(/^[0-9]$/.test(e.key))padKey(e.key);
   else if(e.key==='Backspace')padKey('D');
@@ -3827,7 +3850,7 @@ function studentLogin(){
    <div class="steps"><div><span class="mono">01</span>Order by ${fmt(CUTOFF)}</div><div><span class="mono">02</span>UPI or pay at the counter</div><div><span class="mono">03</span>Say your token, collect</div></div>
   </div>
   <div><div class="stack">${SHOPS.map((s,i)=>{const sp=itemOf(s,S.shops[s.id].special);return `<div class="pillx" style="background:${PILLS[i][0]};color:${PILLS[i][1]};z-index:${i+1};animation-delay:${(.12+i*.09).toFixed(2)}s"><div><b>${s.name}</b><span>${esc(sp.name)}</span></div><em>${rs(sp.price)}</em></div>`}).join('')}</div>
-  <p class="stack-cap">Tasty Time and Campus Kitchen. Today's specials, live.</p></div>
+  <p class="stack-cap">Tasty Time, Campus Kitchen and German Cafe. Today's specials, live.</p></div>
   </div></main>`;
 }
 
@@ -3844,7 +3867,7 @@ function home(){
   <p class="lead">${open?`Order by <b>${fmt(CUTOFF)}</b>. Collect any time from ${fmt(LUNCH_START)} to ${fmt(LUNCH_END)}.`:act.some(o=>o.day===S.day||isPart(o))?`Collect your order any time till <b>${fmt(LUNCH_END)}</b>.`:USE_PHP&&S.now<=PRE_CUTOFF?`You can preorder for tomorrow till <b>${fmt(PRE_CUTOFF)}</b>.`:'Ordering opens again tomorrow morning. You can still browse the menus.'}</p>
   ${daybar()}</section>
   ${act.length?`<section><div class="sec-h"><h2>Your ${act.length>1?'tokens':'token'}</h2></div><div class="tokens">${act.map(o=>{const s=shopOf(o.shop);return `<a class="live-card" href="#order-${o.id}"><div><div class="lc-top">${s.name}</div><div class="lc-token mono">${checking(o)?'····':o.token}</div><div class="lc-sub">${o.day>S.day?'Preorder for tomorrow. ':''}${statusText(o)}</div></div><div class="lc-right"><span class="chip dk">${checking(o)?'Checking UPI':o.pay==='upi'?'Paid by UPI':'Pay '+rs(o.total-(o.cashPaid||0))+' at counter'}</span><span class="lc-go">Open ${ICON.chev}</span></div></a>`}).join('')}</div></section>`:''}
-  <section><div class="sec-h"><h2>Shops</h2><span class="mute small">Tasty Time and Campus Kitchen</span></div><div class="shops">${SHOPS.map(shopCard).join('')}</div></section>
+  <section><div class="sec-h"><h2>Shops</h2><span class="mute small">Tasty Time, Campus Kitchen and German Cafe</span></div><div class="shops">${SHOPS.map(shopCard).join('')}</div></section>
   ${footer()}</main>`;
 }
 function shopCard(s){
@@ -3950,13 +3973,15 @@ function orderPage(id){
   ${!a?`<button class="btn ghost lg" onclick="orderAgain(${o.id})">Order this again</button>`:''}</main>`;
 }
 
+async function askLk(){const r=await php('GET','me');const lk=r.s===200&&r.j.user&&r.j.user.lk;if(lk){S.lk=lk;save();softRender()}}
 function ordersPage(){
+  if(USE_PHP&&!S.lk&&!ui.lkAsked){ui.lkAsked=true;setTimeout(askLk,0)}
   const mine=S.orders.filter(o=>o.roll===S.roll).sort((a,b)=>b.id-a.id);
   const spent=mine.filter(o=>o.status==='collected').reduce((a,o)=>a+o.total,0);
   const days=[...new Set(mine.map(o=>o.day))].sort((a,b)=>b-a);
   const row=o=>{const s=shopOf(o.shop),a=isActive(o);return `<div class="orow">${tile(s)}<div class="orow-b"><a href="#order-${o.id}"><div class="orow-t"><b>${s.name}</b>${a?`<span class="mono small">${checking(o)?'Checking UPI':'Token '+o.token}</span>`:''}<span class="tot">${rs(o.total)}</span></div><div class="mute small clamp" style="margin-top:2px">${itemsText(o)}</div></a><div class="orow-m">${stChip(o)}<span class="mute small">${fmt(o.at)}, ${o.pay==='upi'?'UPI':'Cash'}</span>${a?`<a class="btn sm" href="#order-${o.id}">View token</a>`:`<button class="btn sm ghost" onclick="orderAgain(${o.id})">Order again</button>`}</div></div></div>`};
   return `<main class="page mid"><section class="hero" style="padding-bottom:0"><p class="eyebrow">Signed in as ${esc(who())}</p><h1 class="display" style="font-size:clamp(36px,5vw,52px)">My orders</h1>
-  <p class="lead sm">${plural(mine.length,'order')}, ${rs(spent)} collected so far</p></section>
+  <p class="lead sm">${plural(mine.length,'order')}, ${rs(spent)} collected so far</p>${S.lk?`<a class="btn ghost" style="margin-top:14px" href="${billLink({lk:S.lk})}" target="_blank" rel="noopener">See my bills</a>`:''}</section>
   ${mine.length?days.map(d=>`<section style="margin-top:36px"><div class="sec-h"><h2>${dayLabel(d)}</h2></div><div class="olist">${mine.filter(o=>o.day===d).map(row).join('')}</div></section>`).join(''):`<div class="card empty" style="margin-top:28px">No orders yet.<br><a class="btn" href="#" style="margin-top:18px">Pick a shop</a></div>`}</main>`;
 }
 
@@ -4084,12 +4109,12 @@ function kitchenView(){
   return `${kpis()}<div class="card pad"><div class="sec-h"><h3>To cook now</h3><span class="mute small">${held?plural(held,'cash order')+' held until the student taps I\'m coming':''}</span></div>
   ${Object.keys(agg).length?`<div class="agg">${Object.entries(agg).sort((a,b)=>b[1]-a[1]).map(([n,q])=>`<span><b>${q}</b>${esc(n)}</span>`).join('')}</div>`:'<p class="mute small" style="margin:0">Nothing to cook right now.</p>'}</div>
   <div class="board">${col('placed','New')}${col('cooking','Cooking')}${col('ready','Ready')}${col('hold','On hold')}</div>
-  ${done.length?`<h2 class="h2">Finished today</h2><div class="card tblwrap"><table class="tbl"><thead><tr><th>Token</th><th>Student</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>${done.map(o=>`<tr><td class="mono" style="color:var(--hi)">${o.token||'Bill '+o.bill}</td><td class="mono">${esc(o.roll)}</td><td>${itemsText(o)}</td><td class="mono">${rs(o.total)}</td><td>${o.ps==='no'?'Not paid':o.pay==='upi'?'QR':'Cash'}</td><td>${stChip(o)}</td></tr>`).join('')}</tbody></table></div>`:''}`;
+  ${done.length?`<h2 class="h2">Finished today</h2><div class="card tblwrap"><table class="tbl"><thead><tr><th>Token</th><th>Student</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>${done.map(o=>`<tr><td class="mono" style="color:var(--hi)">${o.token||'Bill '+o.bill}</td><td class="mono">${esc(o.roll)}</td><td>${itemsText(o)}</td><td class="mono">${rs(o.total)}</td><td>${o.ps==='no'?'Not paid':o.pay==='upi'?'QR':'Cash'}</td><td>${stChip(o)}${o.lk&&!o.walk?` <a class="btn sm ghost" href="${orderBillWa(o)}" target="_blank" rel="noopener">Send bill</a>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}`;
 }
 function shopMenuView(){
   const s=shopOf(S.auth),st=S.shops[S.auth],sp=itemOf(s,st.special);
   return `<div class="card pad special-s"><div><div class="lbl">Today's special</div><div class="sp-n">${veg(sp)}${esc(sp.name)}</div></div><p class="mute small" style="margin:0;max-width:260px;text-align:right">Tap the star on any item to make it today's special.</p></div>
-  ${s.menu.map(g=>`<h2 class="h2">${g.cat}</h2><div class="card list">${g.items.map(it=>`<div class="it"><div class="it-b"><div class="it-n">${veg(it)}${esc(it.name)}</div><div class="it-p">${rs(it.price)}${st.sold[it.id]?'<span class="sold">Sold out</span>':''}</div></div>
+  ${s.menu.map(g=>`<h2 class="h2">${g.cat}</h2><div class="card list">${g.items.map(it=>`<div class="it"><div class="it-b"><div class="it-n">${veg(it)}${esc(it.name)}</div><div class="it-p"><b class="mono">${it.code}</b> ${rs(it.price)}${st.sold[it.id]?'<span class="sold">Sold out</span>':''}</div></div>
   <div class="line-r"><button class="star-b ${st.special===it.id?'on':''}" title="Make this today's special" onclick="setSpecial('${it.id}')">${ICON.star}</button>
   <label class="sw"><input type="checkbox" ${st.sold[it.id]?'':'checked'} onchange="toggleSold('${it.id}')"><span></span></label><span class="sw-l">${st.sold[it.id]?'Sold out':'Available'}</span></div></div>`).join('')}</div>`).join('')}`;
 }
@@ -4106,11 +4131,11 @@ function settingsView(){
 }
 function shopDash(r){
   const s=shopOf(S.auth),st=S.shops[S.auth];
-  const views={pre:preView,records:recordsView,students:studentsView,counter:counterView,orders:kitchenView,billing:billingView,closing:closingView,analytics:analyticsView,customers:customersView,menu:shopMenuView,settings:settingsView};
-  const v=views[r.name]&&(USE_PHP||(r.name!=='students'&&r.name!=='pre'&&r.name!=='records'))?r.name:'counter';
-  const titles={pre:'Preorders',records:'Records',students:'Students',counter:'Counter',orders:'Kitchen',billing:'Billing',closing:'Day closing',analytics:'Analytics',customers:'Customers',menu:'Menu',settings:'Settings'};
+  const views={pre:preView,records:recordsView,students:studentsView,counts:countsView,counter:counterView,orders:kitchenView,billing:billingView,closing:closingView,analytics:analyticsView,customers:customersView,menu:shopMenuView,settings:settingsView};
+  const v=views[r.name]&&(USE_PHP||(r.name!=='students'&&r.name!=='pre'&&r.name!=='records'&&r.name!=='counts'))?r.name:'counter';
+  const titles={pre:'Preorders',counts:'Order count',records:'Records',students:'Students',counter:'Counter',orders:'Kitchen',billing:'Billing',closing:'Day closing',analytics:'Analytics',customers:'Customers',menu:'Menu',settings:'Settings'};
   const links=[['counter','Counter','shop'],['orders','Kitchen','shop-orders'],['billing','Billing','shop-billing'],['closing','Closing','shop-closing'],['analytics','Analytics','shop-analytics'],['customers','Customers','shop-customers'],['menu','Menu','shop-menu'],['settings','Settings','shop-settings']];
-  if(USE_PHP){links.splice(5,0,['records','Records','shop-records']);links.splice(7,0,['students','Students','shop-students']);links.splice(2,0,['pre','Preorders','shop-pre'])}
+  if(USE_PHP){links.splice(5,0,['records','Records','shop-records']);links.splice(7,0,['students','Students','shop-students']);links.splice(2,0,['pre','Preorders','shop-pre']);links.splice(links.findIndex(x=>x[0]==='analytics')+1,0,['counts','Order count','shop-counts'])}
   const pending=liveOf(S.auth).filter(o=>o.status==='placed'||o.status==='cooking').length,checks=toCheck(S.auth).length;
   const status=!st.open?'Not taking orders':ordering()?'Taking orders till '+fmt(CUTOFF):'Ordering closed';
   return `<div class="dash"><aside class="side"><div class="brandbox">${tile(s,'lg')}<div><b>${s.name}</b><div class="mute small">Counter</div></div></div>
@@ -4217,9 +4242,36 @@ const draft = () => ui.bill[S.auth]||(ui.bill[S.auth]={});
 function draftLines(){const s=shopOf(S.auth),d=draft();return Object.keys(d).map(id=>{const it=itemOf(s,id);return it?{id,n:it.name,p:it.price,q:d[id],veg:it.veg}:null}).filter(Boolean)}
 const draftTotal = () => sum(draftLines(),l=>l.p*l.q);
 function bAdd(id,d){const x=draft();x[id]=Math.max(0,(x[id]||0)+d);if(!x[id])delete x[id];render()}
-function bClear(){ui.bill[S.auth]={};ui.bgot='';render()}
+function bClear(){ui.bill[S.auth]={};ui.bgot='';ui.blast='';ui.bmsg=null;render()}
+/* Dish codes, counter billing only. First digit is the category, second is the dish in it, so adding a dish at the end of a category moves no other code. */
+function bFocus(){const e=document.getElementById('bcode');if(e&&!ui.sheet&&matchMedia('(hover:hover)').matches)e.focus({preventScroll:true})}
+function bSay(t,bad){ui.bmsg={t,bad:!!bad};render();const e=document.getElementById('bcode');if(e)e.focus({preventScroll:true})}
+function bCodeIn(el){
+  const v=el.value.replace(/\D/g,'').slice(0,2);el.value=v;if(v.length<2)return;
+  el.value='';const it=shopOf(S.auth).items.find(i=>i.code===v);
+  if(!it)return bSay('No dish has code '+v,true);
+  if(S.shops[S.auth].sold[it.id])return bSay(it.name+' is sold out',true);
+  const d=draft();d[it.id]=(d[it.id]||0)+1;ui.blast=it.id;bSay(v+' '+it.name+', '+d[it.id]+' on this bill');
+}
+function bLast(n){
+  const it=ui.blast&&itemOf(shopOf(S.auth),ui.blast),d=draft();
+  if(!it||!d[it.id])return bSay('Type a dish code first',true);
+  d[it.id]+=n;const q=d[it.id];if(q<1){delete d[it.id];ui.blast=''}bSay(it.code+' '+it.name+', '+Math.max(q,0)+' on this bill');
+}
+function bCodeKey(e){
+  if(e.key==='Enter'){e.preventDefault();if(e.repeat)return;if(e.target.value)return bSay('Type both digits of the code',true);return bQuick()}
+  if(e.key==='+'||e.key==='-'){e.preventDefault();if(!e.repeat)bLast(e.key==='+'?1:-1);return}
+  if(e.key==='c'||e.key==='C'||e.key==='u'||e.key==='U'){e.preventDefault();ui.bmode=/u/i.test(e.key)?'upi':'cash';render();const b=document.getElementById('bcode');if(b)b.focus({preventScroll:true})}
+}
+function bQuick(){
+  if(!draftLines().length)return bSay('Type a dish code first',true);
+  const t=draftTotal(),g=parseInt(ui.bgot)||0;
+  if((ui.bmode||'cash')==='cash'&&g&&g<t)return bSay('Cash received is '+rs(t-g)+' short',true);
+  if(!ui.cu.phone)ui.noph=true;
+  ui.bmsg=null;ui.blast='';saveBill();if(!ui.phAsk)ui.bmode='cash';
+}
 function bMode(m){ui.bmode=m;render()}
-function bFilter(v){ui.bq=v;const q=v.trim().toLowerCase();let any=false;document.querySelectorAll('.bt').forEach(t=>{const ok=!q||t.dataset.n.includes(q);t.style.display=ok?'':'none';if(ok)any=true});const e=document.getElementById('bnone');if(e)e.style.display=any?'none':''}
+function bFilter(v){ui.bq=v;const q=v.trim().toLowerCase();let any=false;document.querySelectorAll('.bt').forEach(t=>{const ok=!q||t.dataset.n.includes(q)||t.dataset.c===q;t.style.display=ok?'':'none';if(ok)any=true});const e=document.getElementById('bnone');if(e)e.style.display=any?'none':''}
 function chgHtml(total){const got=parseInt(ui.bgot)||0;if(!got)return '<span class="mute">Type the cash given, or tap Exact</span>';if(got<total)return `<span class="bad">${rs(total-got)} short</span>`;return `Return <b class="mono">${rs(got-total)}</b>`}
 function bGotIn(v){ui.bgot=v.replace(/\D/g,'').slice(0,6);const t=draftTotal(),g=parseInt(ui.bgot)||0;document.getElementById('chg').innerHTML=chgHtml(t);document.getElementById('bsave').disabled=!!g&&g<t}
 const goodPh=v=>/^[6-9]\d{9}$/.test(cleanPh(v||''));
@@ -4240,6 +4292,8 @@ function voidBill(id){
   ui.voidArm=null;b.void=true;save();emit({t:'void',id:b.id});ui.toast='Bill '+b.no+' cancelled. It is left out of the day totals.';render();
 }
 // The customer's private bills page, from the pages folder this app is served from. Opens with no login.
+const orderBillText=o=>{const s=shopOf(S.auth),L=['*'+s.name+'*',PLACE,'','App order '+o.bill,''];o.items.forEach(i=>L.push(i.q+' x '+i.n+'  '+rs(i.p*i.q)));L.push('','*Total '+rs(o.total)+'*','Paid by '+(o.pay==='cash'?'Cash':'UPI'));if(o.lk)L.push('','All your bills: '+billLink(o));L.push('','Thank you, visit again');return L.join('\n')};
+const orderBillWa=o=>'https://wa.me/'+(/^\d{10}$/.test(o.ph||'')?'91'+o.ph:'')+'?text='+encodeURIComponent(orderBillText(o));
 const billLink=b=>location.origin+location.pathname.replace(/[^/]*$/,'')+'bill.html#'+b.lk;
 function receiptText(b){
   const s=shopOf(b.sid),t=tax(b.total),L=[];
@@ -4272,7 +4326,7 @@ function receiptHtml(b){
   const s=shopOf(b.sid),t=tax(b.total);
   return `<div class="receipt">${b.void?'<span class="rc-void">CANCELLED</span>':''}
   <div class="rc-c"><b class="rc-shop">${s.name}</b><div>${PLACE}</div>${b.gstin?`<div>GSTIN ${esc(b.gstin)}</div>`:''}<div class="rc-t">${b.gstin?'TAX INVOICE':'BILL'}</div></div>
-  <div class="rc-hr"></div><div class="rc-row"><span>Bill no</span><span>${b.no}</span></div>${b.tok?`<div class="rc-row rc-tot"><span>TOKEN</span><span>${b.tok}</span></div>`:''}<div class="rc-row"><span>Date</span><span>${billDate(b.day)}, ${fmt(b.at)}</span></div>${b.cname&&b.cname!=='Customer'?`<div class="rc-row"><span>Customer</span><span>${esc(b.cname)}</span></div>`:''}
+  <div class="rc-hr"></div><div class="rc-row"><span>Bill no</span><span>${esc(b.no)}</span></div>${b.tok?`<div class="rc-row rc-tot"><span>TOKEN</span><span>${esc(b.tok)}</span></div>`:''}<div class="rc-row"><span>Date</span><span>${billDate(b.day)}, ${fmt(b.at)}</span></div>${b.cname&&b.cname!=='Customer'?`<div class="rc-row"><span>Customer</span><span>${esc(b.cname)}</span></div>`:''}
   <div class="rc-hr"></div><div class="rc-it rc-h"><span>Item</span><span>Qty</span><span>Amount</span></div>
   ${b.items.map(i=>`<div class="rc-it"><span>${esc(i.n)}<br><small>@ ${rs(i.p)}</small></span><span>${i.q}</span><span>${(i.p*i.q).toFixed(2)}</span></div>`).join('')}
   <div class="rc-hr"></div>${b.gstin?`<div class="rc-row"><span>Taxable value</span><span>${t.taxable.toFixed(2)}</span></div><div class="rc-row"><span>CGST 2.5%</span><span>${t.cgst.toFixed(2)}</span></div><div class="rc-row"><span>SGST 2.5%</span><span>${t.sgst.toFixed(2)}</span></div>`:''}
@@ -4297,7 +4351,7 @@ function billingView(){
   const s=shopOf(S.auth),st=S.shops[S.auth],d=draft(),lines=draftLines(),total=draftTotal(),mode=ui.bmode||'cash';
   const q=(ui.bq||'').trim().toLowerCase(),cat=ui.bcat;
   const items=s.menu.flatMap((g,i)=>cat<0||cat===i?g.items:[]);
-  const tiles=items.map(it=>{const so=st.sold[it.id],n=d[it.id]||0,hide=q&&!it.name.toLowerCase().includes(q);return `<button class="bt ${n?'in':''}" data-n="${esc(it.name.toLowerCase())}" ${hide?'style="display:none"':''} ${so?'disabled':''} onclick="bAdd('${it.id}',1)">${n?`<em>${n}</em>`:''}<span class="bt-n">${veg(it)}<span>${esc(it.name)}</span></span><span class="bt-p mono">${so?'Sold out':rs(it.price)}</span></button>`}).join('');
+  const tiles=items.map(it=>{const so=st.sold[it.id],n=d[it.id]||0,hide=q&&!it.name.toLowerCase().includes(q)&&it.code!==q;return `<button class="bt ${n?'in':''}" data-c="${it.code}" data-n="${esc(it.name.toLowerCase())}" ${hide?'style="display:none"':''} ${so?'disabled':''} onclick="bAdd('${it.id}',1)">${n?`<em>${n}</em>`:''}<span class="bt-n">${veg(it)}<span>${esc(it.name)}</span></span><span class="bt-p mono"><b class="bt-c">${it.code}</b>${so?'Sold out':rs(it.price)}</span></button>`}).join('');
   const g=gstinOf(S.auth),tx=tax(total),got=parseInt(ui.bgot)||0;
   const quick=[...new Set([total,Math.ceil(total/50)*50,Math.ceil(total/100)*100,Math.max(500,Math.ceil(total/500)*500)])].filter(v=>v>=total).slice(0,4);
   const panel=`<div class="card pad bill" id="billpanel"><div class="sec-h" style="margin-bottom:4px"><h3>Bill <span class="mono">${billNo(S.auth)}</span></h3>${lines.length?`<button class="fine" style="margin:0" onclick="bClear()">Clear</button>`:''}</div>
@@ -4314,8 +4368,10 @@ function billingView(){
   <button class="btn lg ok" onclick="saveBill()">UPI received, save bill</button><p class="fine center">Tap only after ${rs(total)} shows in your UPI or soundbox.</p>`}`
   :`<p class="mute small" style="margin:8px 0 0">Tap items to start a bill. Menu prices include GST${g?', the bill shows the CGST and SGST split':''}.</p>`}</div>`;
   const today=billsOf(S.auth,S.day).slice().reverse();
-  const recent=today.length?`<div class="card pad"><div class="sec-h" style="margin-bottom:6px"><h3>Today's bills</h3><a class="fine" style="margin:0" href="#shop-closing">Day closing</a></div>${today.slice(0,5).map(b=>`<button class="ow" onclick="ui.sheet={type:'receipt',id:${b.id}};render()"><span class="mono small" style="font-size:13px">${b.no.split('/').pop()}</span><span class="ow-b">${fmt(b.at)}, ${plural(sum(b.items,i=>i.q),'item')}</span>${b.void?'<span class="chip line">Cancelled</span>':`<span class="chip ${b.mode==='cash'?'warn':'ok'}">${b.mode==='cash'?'Cash':'UPI'} ${rs(b.total)}</span>`}</button>`).join('')}</div>`:'';
+  const recent=today.length?`<div class="card pad"><div class="sec-h" style="margin-bottom:6px"><h3>Today's bills</h3><a class="fine" style="margin:0" href="#shop-closing">Day closing</a></div>${today.slice(0,5).map(b=>`<button class="ow" onclick="ui.sheet={type:'receipt',id:${b.id}};render()"><span class="mono small" style="font-size:13px">${esc(b.no.split('/').pop())}</span><span class="ow-b">${fmt(b.at)}, ${plural(sum(b.items,i=>i.q),'item')}</span>${b.void?'<span class="chip line">Cancelled</span>':`<span class="chip ${b.mode==='cash'?'warn':'ok'}">${b.mode==='cash'?'Cash':'UPI'} ${rs(b.total)}</span>`}</button>`).join('')}</div>`:'';
   return `<div class="billing"><div>
+  <div class="bcode"><label for="bcode">Dish code</label><input id="bcode" class="mono" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" enterkeyhint="done" placeholder="00" aria-label="Dish code, 2 digits" oninput="bCodeIn(this)" onkeydown="bCodeKey(event)"><button id="bquick" class="btn ok" ${lines.length?'':'disabled'} onclick="bQuick()">Save ${rs(total)} ${mode==='cash'?'Cash':'UPI'}</button></div>
+  <p class="bmsg ${ui.bmsg&&ui.bmsg.bad?'bad':''}" role="status">${ui.bmsg?esc(ui.bmsg.t):'Type 2 digits to add a dish. Plus adds one more, minus takes one off, Enter saves the bill.'}</p>
   <div class="bsearch">${ICON.search}<input placeholder="Search ${s.name} items" value="${esc(ui.bq||'')}" autocomplete="off" spellcheck="false" oninput="bFilter(this.value)"></div>
   <div class="bcats"><button class="${cat<0?'on':''}" onclick="ui.bcat=-1;render()">All items</button>${s.menu.map((g,i)=>`<button class="${cat===i?'on':''}" onclick="ui.bcat=${i};render()">${g.cat}</button>`).join('')}</div>
   <div class="btiles">${tiles}</div><p id="bnone" class="mute small" style="display:none">No items match your search</p></div>
@@ -4364,7 +4420,7 @@ function closingView(){
   <h2 class="h2">Items sold today</h2>
   ${c.items.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Item</th><th>Counter</th><th>App</th><th>Total</th><th>Amount</th></tr></thead><tbody>${c.items.map((i,k)=>`<tr><td>${esc(i.n)}${k===0?' <span class="chip ok">Top seller</span>':''}</td><td class="mono">${i.c}</td><td class="mono">${i.a}</td><td class="mono" style="color:var(--hi)">${i.c+i.a}</td><td class="mono">${rs(i.amt)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="card pad mute small">Nothing sold yet today.</div>'}
   <h2 class="h2">All bills today</h2>
-  ${all.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Bill no</th><th>Time</th><th>Items</th><th>Paid by</th><th>Amount</th><th></th></tr></thead><tbody>${all.map(b=>`<tr class="click" onclick="ui.sheet={type:'receipt',id:${b.id}};render()"><td class="mono" style="color:var(--hi)">${b.no}</td><td class="mono">${fmt(b.at)}</td><td>${b.items.map(i=>i.q+' x '+esc(i.n)).join(', ')}</td><td>${b.mode==='cash'?'Cash':'UPI'}</td><td class="mono">${rs(b.total)}</td><td>${b.void?'<span class="chip line">Cancelled</span>':'<span class="chip ok">Saved</span>'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="card pad mute small">No counter bills yet. Make one in Billing.</div>'}`;
+  ${all.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Bill no</th><th>Time</th><th>Items</th><th>Paid by</th><th>Amount</th><th></th></tr></thead><tbody>${all.map(b=>`<tr class="click" onclick="ui.sheet={type:'receipt',id:${b.id}};render()"><td class="mono" style="color:var(--hi)">${esc(b.no)}</td><td class="mono">${fmt(b.at)}</td><td>${b.items.map(i=>i.q+' x '+esc(i.n)).join(', ')}</td><td>${b.mode==='cash'?'Cash':'UPI'}</td><td class="mono">${rs(b.total)}</td><td>${b.void?'<span class="chip line">Cancelled</span>':'<span class="chip ok">Saved</span>'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="card pad mute small">No counter bills yet. Make one in Billing.</div>'}`;
 }
 
 
@@ -4372,7 +4428,7 @@ function closingView(){
 // Past days are generated sample data (same numbers every time for a shop and day). Today is real: bills + app orders.
 const AN_DAYS=60,SLOT0=660,SLOTW=15,SLOTN=12,SLOTWT=[3,4,5,6,7,8,6,14,20,15,8,4];
 const WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],WDL=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const SLOW={s1:['Chicken gravy','Orange juice','Grilled cheese sandwich'],s2:['Egg noodles','Kulfi','Rajma rice']};
+const SLOW={s1:['Chicken gravy','Orange juice','Grilled cheese sandwich'],s2:['Egg noodles','Kulfi','Rajma rice'],s3:[]};
 const CATW={Meals:3,Biryani:2.6,'Rice bowls':2.4,'Fried rice and noodles':2.2,Tiffin:2,Snacks:2.2,'Chapati and parotta':1.6};
 const anCache={};
 const dateOf = d => new Date(Date.now()+(d-S.day)*864e5);
@@ -4507,6 +4563,45 @@ function analyticsView(){
   <p class="fine" style="margin-top:18px">${USE_PHP?'Real numbers from your database. They refresh by themselves.':'Demo: days before today are sample numbers so the charts have history. Today is real, from your bills and app orders, and updates as you bill.'}</p>`;
 }
 
+/* ---------- order count: web orders collected against counter bills, per day, week, month and overall ---------- */
+function cnS(){return ui.cn||(ui.cn={d:null,sig:'',err:'',busy:false,by:'days',scope:'shop',key:''})}
+async function cnLoad(){
+  const g=cnS(),key=S.auth;if(g.busy)return;g.busy=true;
+  try{
+    const r=await php('GET','shop/'+S.auth+'/counts');
+    if(key!==S.auth)return;
+    if(r.s!==200){g.err=(r.j&&r.j.error)||'Could not load the counts';softRender();return}
+    const sig=JSON.stringify(r.j);g.key=key;g.err='';if(sig===g.sig)return;g.sig=sig;g.d=r.j;softRender();
+  }finally{g.busy=false}
+}
+function cnBy(v){cnS().by=v;render()}
+function cnScope(v){cnS().scope=v;render()}
+const cnPct = r => pctOf(r.web,r.web+r.counter);
+const cnMonth = k => new Date(k+'-01T12:00:00').toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+const cnDate = k => new Date(k+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+function cnLabel(by,k,i,n){
+  if(by==='months')return cnMonth(k);
+  if(by==='weeks')return i===n-1?'This week':'Week of '+cnDate(k);
+  return i===n-1?'Today':cnDate(k);
+}
+function countsView(){
+  const g=cnS();
+  if(!g.d||g.key!==S.auth){setTimeout(cnLoad,0);return g.err?`<div class="banner">${esc(g.err)}</div>`:'<p class="mute">Loading the counts...</p>'}
+  const all=g.d.all&&g.scope==='all',v=all?g.d.all:g.d.shop,rows=v[g.by],s=shopOf(S.auth);
+  const kpi=(l,r)=>`<div class="kpi"><span>${l}</span><b>${r.web+r.counter}</b><small>Web ${r.web}, Counter ${r.counter}</small></div>`;
+  const tr=(l,r)=>`<tr><td>${esc(l)}</td><td class="mono">${r.web}</td><td class="mono">${r.counter}</td><td class="mono" style="color:var(--hi)">${r.web+r.counter}</td><td class="mono">${cnPct(r)}%</td><td class="mono">${rsk(r.webAmt)}</td><td class="mono">${rsk(r.counterAmt)}</td></tr>`;
+  const head='<th>Web</th><th>Counter</th><th>Total</th><th>Web share</th><th>Web sales</th><th>Counter sales</th>';
+  const cols=rows.map((r,i)=>{const l=cnLabel(g.by,r.key,i,rows.length);return {segs:[r.counter,r.web],label:g.by==='months'?cnMonth(r.key).split(' ')[0]:g.by==='weeks'?cnDate(r.key):l,today:i===rows.length-1,tip:`${l}\nTotal ${r.web+r.counter}\nWeb ${r.web}\nCounter ${r.counter}`}});
+  return `${g.d.all?`<div class="seg an-seg" style="grid-template-columns:repeat(2,1fr);margin-bottom:14px"><button class="${all?'':'on'}" onclick="cnScope('shop')">${esc(s.name)}</button><button class="${all?'on':''}" onclick="cnScope('all')">All shops</button></div>`:''}
+  <div class="kpis">${kpi('Today',v.today)}${kpi('This week',v.week)}${kpi('This month',v.month)}${kpi('All time',v.total)}</div>
+  <div class="card pad an-card"><div class="sec-h"><h3>Web and counter orders</h3><div class="legend"><span><i class="s1"></i>Counter</span><span><i class="s2"></i>Web</span></div></div>
+  <div class="seg an-seg" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">${[['days','Per day'],['weeks','Per week'],['months','Per month']].map(([k,l])=>`<button class="${g.by===k?'on':''}" onclick="cnBy('${k}')">${l}</button>`).join('')}</div>
+  ${barChart(cols,{money:false,every:g.by==='days'?5:g.by==='weeks'?2:2})}
+  <div class="tblwrap" style="margin-top:14px;max-height:420px;overflow:auto"><table class="tbl"><thead><tr><th>${g.by==='days'?'Day':g.by==='weeks'?'Week':'Month'}</th>${head}</tr></thead><tbody>${rows.map((r,i)=>tr(cnLabel(g.by,r.key,i,rows.length),r)).reverse().join('')}<tr><td><b>All time</b></td><td class="mono">${v.total.web}</td><td class="mono">${v.total.counter}</td><td class="mono" style="color:var(--hi)">${v.total.web+v.total.counter}</td><td class="mono">${cnPct(v.total)}%</td><td class="mono">${rsk(v.total.webAmt)}</td><td class="mono">${rsk(v.total.counterAmt)}</td></tr></tbody></table></div></div>
+  ${all?`<div class="card tblwrap" style="margin-top:18px"><table class="tbl"><thead><tr><th>Shop</th><th>Today</th><th>This week</th><th>This month</th><th>All time</th></tr></thead><tbody>${g.d.each.map(e=>`<tr><td>${esc(e.name)}</td>${['today','week','month','total'].map(k=>`<td class="mono">${e[k].web} web, ${e[k].counter} counter</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:''}
+  <p class="fine" style="margin-top:18px">Web counts orders placed by students on the website and handed over. Counter counts bills made from the counter sign in. Cancelled, expired and voided ones are left out. Weeks start on Monday. This page refreshes by itself.</p>`;
+}
+
 /* ---------- n8n backend (n8n.luvias.in, workflow "KPR Lunch Backend") ----------
    Customer contacts and offers are stored on the server, not on the public live sync topic.
    Form posts (no custom headers) so the browser sends them without a CORS preflight.
@@ -4557,7 +4652,7 @@ const pinCard = sid => USE_PHP?`<details class="card pad" style="margin-bottom:1
   <div style="display:flex;gap:10px;flex-wrap:wrap"><input id="pin" class="input mono" style="flex:1;min-width:160px" inputmode="numeric" autocomplete="off" placeholder="8 digit PIN" onkeydown="if(event.key==='Enter')setPin('${sid}')"><button class="btn ok" style="width:auto;padding:0 22px" onclick="setPin('${sid}')">Unlock</button></div></div>`;
 const stopLink = c => c&&c.tk?(USE_PHP?PHP.replace(/\/$/,'')+'/stop':API+'/stop')+'?s='+c.sid+'&t='+c.tk:'';
 const offDefault = sid => `hi {name}, ${shopOf(sid).name.toLowerCase()} here.
-today only, any ${sid==='s1'?'biryani':'fried rice'} comes with a free ${sid==='s1'?'tea':'rose milk'}.
+today only, any ${{s1:'biryani',s2:'fried rice',s3:'schnitzel'}[sid]} comes with a free ${{s1:'tea',s2:'rose milk',s3:'coffee'}[sid]}.
 just show this message at the counter before 1:45 pm.
 want to skip the queue? order from class on the kpr lunch app: ${STUDENT_LINK}`;
 
@@ -4645,7 +4740,7 @@ function customersView(){
   const compose=camp?`<div class="card pad offer"><div class="sec-h" style="margin-bottom:6px"><h3>Sending offer</h3><span class="chip ${camp.sent.length===camp.n?'ok':'warn'} mono">${camp.sent.length} of ${camp.n} sent</span></div>
     <p class="mute small" style="margin:0 0 10px">Tap each name. WhatsApp opens with the offer ready, press send there.${camp.file?' Attach '+esc(camp.file)+' in that chat, or use Share photo to send it to several chats at once.':''}</p>
     ${camp.file?`<button class="btn ghost" style="width:100%;margin-bottom:8px" onclick="offShare()">Share ${isImg?'photo':'file'} to WhatsApp</button>`:''}
-    <div class="sendlist">${audience().map(c=>{const done=camp.sent.includes(c.phone);return `<a class="sl ${done?'done':''}" href="https://wa.me/91${c.phone}?text=${encodeURIComponent(offText(c))}" target="_blank" rel="noopener" onclick="offMark(${camp.id},'${c.phone}')"><span><b>${esc(c.name)}</b><span class="mute small mono">${fmtPh(c.phone)}${c.year?', '+c.year:''}</span></span><span class="chip ${done?'ok':'line'}">${done?'Sent':'Send'}</span></a>`}).join('')}</div>
+    <div class="sendlist">${audience().map(c=>{const done=camp.sent.includes(c.phone);return `<a class="sl ${done?'done':''}" href="https://wa.me/91${c.phone}?text=${encodeURIComponent(offText(c))}" target="_blank" rel="noopener" onclick="offMark(${camp.id},'${c.phone}')"><span><b>${esc(c.name)}</b><span class="mute small mono">${fmtPh(c.phone)}${c.year?', '+esc(c.year):''}</span></span><span class="chip ${done?'ok':'line'}">${done?'Sent':'Send'}</span></a>`}).join('')}</div>
     ${pinOf(camp.sid)&&camp.sent.length<camp.n?`<button class="btn lg" style="margin-bottom:8px" onclick="offAuto(${camp.id})" ${ui.offbusy?'disabled':''}>${ui.offbusy?'Sending '+ui.offbusy:'Send to all automatically'}</button>`:''}
     <button class="btn ghost lg" onclick="ui.off.run=null;render()">Done, write a new offer</button>
     <p class="fine">Send to all goes out from the shop line through n8n, no tapping. This demo uses a WhatsApp test line, so only phones that joined it receive the message. In the live version it sends from the shop number with the photo or PDF attached. WhatsApp charges about Rs 1 per message, passed on at cost.</p></div>`
@@ -4665,7 +4760,7 @@ function customersView(){
   <div class="custs"><div>
   <div class="bsearch">${ICON.search}<input placeholder="Search name or number" value="${esc(ui.cq||'')}" autocomplete="off" oninput="ui.cq=this.value;clearTimeout(window._cq);window._cq=setTimeout(()=>{const a=document.activeElement;render();const n=document.querySelector('.custs .bsearch input');if(n&&a&&a.tagName==='INPUT'){n.focus();n.setSelectionRange(n.value.length,n.value.length)}},250)"></div>
   <div class="bcats"><button class="${!fy?'on':''}" onclick="ui.cy='';render()">All years</button>${YEARS.map(y=>`<button class="${fy===y?'on':''}" onclick="ui.cy='${y}';render()">${y} <span class="mono">${all.filter(c=>c.year===y).length}</span></button>`).join('')}</div>
-  ${list.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Name</th><th>WhatsApp</th><th>Year</th><th>Visits</th><th>Spent</th><th>Last visit</th><th>Offers</th></tr></thead><tbody>${list.map(c=>`<tr><td style="color:var(--hi);font-weight:600">${esc(c.name)}</td><td class="mono">${fmtPh(c.phone)}</td><td>${c.year||'<span class="mute">Not given</span>'}</td><td class="mono">${c.visits}</td><td class="mono">${rs(c.spent)}</td><td>${dayLabel(c.last)}</td><td>${c.stopped?'<span class="chip line">Stopped</span>':c.ok?'<span class="chip ok">Yes</span>':'<span class="chip line">No</span>'}</td></tr>`).join('')}</tbody></table></div>`
+  ${list.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Name</th><th>WhatsApp</th><th>Year</th><th>Visits</th><th>Spent</th><th>Last visit</th><th>Offers</th></tr></thead><tbody>${list.map(c=>`<tr><td style="color:var(--hi);font-weight:600">${esc(c.name)}</td><td class="mono">${fmtPh(c.phone)}</td><td>${c.year?esc(c.year):'<span class="mute">Not given</span>'}</td><td class="mono">${c.visits}</td><td class="mono">${rs(c.spent)}</td><td>${dayLabel(c.last)}</td><td>${c.stopped?'<span class="chip line">Stopped</span>':c.ok?'<span class="chip ok">Yes</span>':'<span class="chip line">No</span>'}</td></tr>`).join('')}</tbody></table></div>`
   :`<div class="card pad mute small">${all.length?'Nobody matches this filter.':'No customers yet. Add their WhatsApp number on a bill in Billing and they appear here.'}</div>`}
   ${past.length?`<h2 class="h2">Recent offers</h2><div class="card list">${past.map(c=>`<div class="it"><div class="it-b"><div class="it-n">${esc(c.msg.slice(0,70))}${c.msg.length>70?'...':''}</div><div class="it-p">${dayLabel(c.day)} at ${fmt(c.at)}${c.file?', with '+esc(c.file):''}</div></div><span class="chip ${c.sent.length===c.n?'ok':'warn'} mono">${c.sent.length} of ${c.n}</span></div>`).join('')}</div>`:''}
   </div><aside class="baside">${compose}</aside></div>`;
@@ -4728,7 +4823,7 @@ if(USE_PHP){
   php('GET','clock').then(r=>{if(r.s===200&&r.j.noTimers){clockOff();softRender()}});
   setInterval(()=>{if(document.hidden)return;if(phpClock()&&!ui.lg)softRender();phpSync();
     if(MODE==='shop'&&S.role==='admin'&&getTok()){askPoll();if(ui.pk===undefined){ui.pk=null;pkLoad()}}
-    if(MODE==='shop'&&S.auth&&S.role==='admin'){tick++;pullCusts(S.auth);if(location.hash==='#shop-pre')preLoad();if(location.hash==='#shop-records'&&tick%3===0)recLoad();if(location.hash==='#shop-analytics'&&tick%10===0)anLoad()}},MODE==='shop'?3000:5000);
+    if(MODE==='shop'&&S.auth&&S.role==='admin'){tick++;pullCusts(S.auth);if(location.hash==='#shop-pre')preLoad();if(location.hash==='#shop-records'&&tick%3===0)recLoad();if(location.hash==='#shop-analytics'&&tick%10===0)anLoad();if(location.hash==='#shop-counts'&&tick%6===0)cnLoad()}},MODE==='shop'?3000:5000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){phpClock();phpSync()}});
 }
 render();
