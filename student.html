@@ -4342,7 +4342,7 @@ function receiptSheet(){
   ${receiptHtml(b)}
   <div class="racts"><label class="lbl" for="wph" style="margin:6px 0 0">Customer phone number, saved with this bill</label>
   <input id="wph" class="input mono" inputmode="numeric" placeholder="98765 43210" value="${esc(ui.bphone||b.cphone||'')}" oninput="phoneIn(this.value,${b.id})">
-  <div class="row2">${pinOf(b.sid)?`<button id="wauto" class="btn" onclick="waAuto(${b.id})" ${ui.wabusy?'disabled':''}>${ui.wabusy?'Sending':'Send on WhatsApp'}</button>`:`<a id="wa" class="btn" href="${esc(waLink(b))}" target="_blank" rel="noopener">Send on WhatsApp</a>`}<a id="sms" class="btn ghost" href="${esc(smsLink(b))}">Send as SMS</a><button class="btn ghost" style="grid-column:1/-1" onclick="window.print()">Print bill</button></div>
+  <div class="row2">${pinOf(b.sid)?`<button id="wauto" class="btn" onclick="waAuto(${b.id})" ${ui.wabusy?'disabled':''}>${ui.wabusy?'Sending':'Send on WhatsApp'}</button>`:`<a id="wa" class="btn" href="${esc(waLink(b))}" target="_blank" rel="noopener">Send on WhatsApp</a>`}${ui.autoSms?`<span class="fine" style="align-self:center;text-align:center">${goodPh(ui.bphone||b.cphone||'')?'The bill is texted to this number by itself':'Add a number and the bill is texted by itself'}</span>`:`<a id="sms" class="btn ghost" href="${esc(smsLink(b))}">Send as SMS</a>`}<button class="btn ghost" style="grid-column:1/-1" onclick="window.print()">Print bill</button></div>
   ${ui.wamsg&&ui.wamsg.id===b.id?`<p id="wamsg" class="small" style="margin:0;text-align:center;font-weight:600;color:${ui.wamsg.ok?'#127A52':'#A23B2A'}">${esc(ui.wamsg.t)}</p>`:''}
   ${pinOf(b.sid)?`<a id="wa" class="fine" style="justify-self:center" href="${esc(waLink(b))}" target="_blank" rel="noopener">or open it in my own WhatsApp</a>`:''}
   <button class="btn ok lg" style="margin-top:4px" onclick="closeSheet()">New bill</button>
@@ -4821,7 +4821,7 @@ if(USE_PHP){
   phpClock();
   if(MODE==='student'&&getTok()&&S.role==='admin'&&!S.roll)toShopPage();
   else{phpRestore();autoSignIn()}
-  php('GET','clock').then(r=>{if(r.s===200&&r.j.noTimers){clockOff();softRender()}});
+  php('GET','clock').then(r=>{if(r.s!==200)return;if(r.j.autoSms)ui.autoSms=true;if(r.j.noTimers)clockOff();if(r.j.noTimers||r.j.autoSms)softRender()});
   setInterval(()=>{if(document.hidden)return;if(phpClock()&&!ui.lg)softRender();phpSync();
     if(MODE==='shop'&&S.role==='admin'&&getTok()){askPoll();if(ui.pk===undefined){ui.pk=null;pkLoad()}}
     if(MODE==='shop'&&S.auth&&S.role==='admin'){tick++;pullCusts(S.auth);if(location.hash==='#shop-pre')preLoad();if(location.hash==='#shop-records'&&tick%3===0)recLoad();if(location.hash==='#shop-analytics'&&tick%10===0)anLoad();if(location.hash==='#shop-counts'&&tick%6===0)cnLoad()}},MODE==='shop'?3000:5000);

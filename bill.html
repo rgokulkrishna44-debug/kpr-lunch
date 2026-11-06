@@ -46,7 +46,7 @@ button{font:inherit;font-weight:600;padding:12px 20px;border-radius:99px;border:
 <body>
 <main id="app"><p class="msg">Loading your bills</p></main>
 <script>
-const API='https://lunch-api.luvias.in/api';
+const API='/api';
 const app=document.getElementById('app');
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rs=n=>'Rs '+(Math.round(n*100)/100).toLocaleString('en-IN',{minimumFractionDigits:Number.isInteger(n)?0:2});
