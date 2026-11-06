@@ -3716,6 +3716,10 @@ function padKey(k){
 function checkToken(){
   const o=liveOf(S.auth).filter(o=>o.token===ui.pad).sort((a,b)=>b.id-a.id)[0];
   ui.found={t:ui.pad,o:o?o.id:null};
+  // Not among today's orders: it may be a preorder for a later day. Ask the database and show what was ordered.
+  if(!o&&USE_PHP){const t=ui.pad,sid=S.auth;php('GET','shop/'+sid+'/token/'+t+'?info=1').then(r=>{
+    if(ui.pad!==t||!ui.found||ui.found.t!==t||ui.found.o)return;
+    if(r.s===200&&r.j.order){const m=mapOrder(r.j.order,true);if(okOrder(m)){ui.found={t,o:null,later:m};render()}}}).catch(()=>{})}
 }
 function loadToken(t){ui.pad=t;checkToken();go('shop')}
 function giveOf(o){const g=ui.give[o.id];return o.items.map((it,i)=>{const r=it.q-dOf(it);return g&&g[i]!=null?Math.min(r,Math.max(0,g[i])):r})}
@@ -4023,6 +4027,10 @@ function resultHtml(){
   if(f.done)return `<div class="result done"><div class="r-lbl mute">Token ${f.done}</div><div class="r-big">Handed over</div><p class="mute" style="margin:0">This token is now used and cannot be used again.</p></div>`;
   if(f.part){const q=getO(f.part);return `<div class="result done"><div class="r-lbl mute">Token ${f.t}</div><div class="r-big">Part handed over</div><p class="mute" style="margin:0">Still to collect: ${q?itemsText(q):''}. The same token works till everything is collected.</p></div>`}
   const o=f.o&&getO(f.o);
+  if(!o&&f.later){const m=f.later,when=m.day===S.day+1?'tomorrow':dayIso(m.day),paid=m.pay==='upi'&&m.paid;
+    return `<div class="result ${paid?'paid':'cash'}"><div class="r-lbl">Token ${m.token}, ${esc(m.roll)}</div><div class="r-big">${paid?'PAID by UPI':'Preorder, not paid yet'}</div>
+    <div class="r-note"><b>Preorder for ${when}.</b> It is handed over on that day. This token works here then.</div>
+    <ul class="r-items">${m.items.map(it=>`<li><b>${it.q}</b>${esc(it.n)}</li>`).join('')}</ul><div class="r-st">Total ${rs(m.total)}</div></div>`}
   if(!o)return bad('No order with token '+esc(f.t),'There is no open order with this number at this shop. Check the number with the student.');
   if(o.status==='collected')return bad('Already used','Token '+o.token+' was fully handed over at '+fmt(o.doneAt)+'.');
   if(o.status==='cancelled')return bad('Cancelled','The student cancelled this order'+(o.refund==='done'?' and was refunded':o.paid?'. A refund is still to give':'')+'.');
