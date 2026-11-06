@@ -4109,7 +4109,7 @@ function kitchenView(){
   return `${kpis()}<div class="card pad"><div class="sec-h"><h3>To cook now</h3><span class="mute small">${held?plural(held,'cash order')+' held until the student taps I\'m coming':''}</span></div>
   ${Object.keys(agg).length?`<div class="agg">${Object.entries(agg).sort((a,b)=>b[1]-a[1]).map(([n,q])=>`<span><b>${q}</b>${esc(n)}</span>`).join('')}</div>`:'<p class="mute small" style="margin:0">Nothing to cook right now.</p>'}</div>
   <div class="board">${col('placed','New')}${col('cooking','Cooking')}${col('ready','Ready')}${col('hold','On hold')}</div>
-  ${done.length?`<h2 class="h2">Finished today</h2><div class="card tblwrap"><table class="tbl"><thead><tr><th>Token</th><th>Student</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>${done.map(o=>`<tr><td class="mono" style="color:var(--hi)">${o.token||'Bill '+o.bill}</td><td class="mono">${esc(o.roll)}</td><td>${itemsText(o)}</td><td class="mono">${rs(o.total)}</td><td>${o.ps==='no'?'Not paid':o.pay==='upi'?'QR':'Cash'}</td><td>${stChip(o)}${o.lk&&!o.walk?` <a class="btn sm ghost" href="${orderBillWa(o)}" target="_blank" rel="noopener">Send bill</a>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}`;
+  ${done.length?`<h2 class="h2">Finished today</h2><div class="card tblwrap"><table class="tbl"><thead><tr><th>Token</th><th>Student</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead><tbody>${done.map(o=>`<tr><td class="mono" style="color:var(--hi)">${o.token||'Bill '+o.bill}</td><td class="mono">${esc(o.roll)}</td><td>${itemsText(o)}</td><td class="mono">${rs(o.total)}</td><td>${o.ps==='no'?'Not paid':o.pay==='upi'?'QR':'Cash'}</td><td>${stChip(o)}${o.lk&&!o.walk?` <a class="btn sm ghost" href="${orderBillWa(o)}" target="_blank" rel="noopener">WhatsApp bill</a> <a class="btn sm ghost" href="${orderBillSms(o)}">SMS bill</a>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}`;
 }
 function shopMenuView(){
   const s=shopOf(S.auth),st=S.shops[S.auth],sp=itemOf(s,st.special);
@@ -4294,6 +4294,7 @@ function voidBill(id){
 // The customer's private bills page, from the pages folder this app is served from. Opens with no login.
 const orderBillText=o=>{const s=shopOf(S.auth),L=['*'+s.name+'*',PLACE,'','App order '+o.bill,''];o.items.forEach(i=>L.push(i.q+' x '+i.n+'  '+rs(i.p*i.q)));L.push('','*Total '+rs(o.total)+'*','Paid by '+(o.pay==='cash'?'Cash':'UPI'));if(o.lk)L.push('','All your bills: '+billLink(o));L.push('','Thank you, visit again');return L.join('\n')};
 const orderBillWa=o=>'https://wa.me/'+(/^\d{10}$/.test(o.ph||'')?'91'+o.ph:'')+'?text='+encodeURIComponent(orderBillText(o));
+const orderBillSms=o=>'sms:'+(/^\d{10}$/.test(o.ph||'')?'+91'+o.ph:'')+'?&body='+encodeURIComponent(orderBillText(o).replace(/\*/g,''));
 const billLink=b=>location.origin+location.pathname.replace(/[^/]*$/,'')+'bill.html#'+b.lk;
 function receiptText(b){
   const s=shopOf(b.sid),t=tax(b.total),L=[];
