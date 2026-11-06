@@ -3031,7 +3031,8 @@ async function phpFlush(){
     if(r.s===0||r.s===429||r.s>=500){sending=false;setTimeout(flush,4000);return}
     if(r.s===401){sending=false;return}
     if(r.s===200){
-      if(ev.t==='bill'&&r.j.no){const b=S.bills.find(x=>x.id===ev.b.id);if(b&&(b.no!==r.j.no||(r.j.tok&&b.tok!==r.j.tok))){b.no=r.j.no;if(r.j.tok)b.tok=r.j.tok;save();softRender()}}
+      if(ev.t==='bill'&&r.j.no){const b=S.bills.find(x=>x.id===ev.b.id);if(b&&(b.no!==r.j.no||(r.j.tok&&b.tok!==r.j.tok)||(r.j.lk&&b.lk!==r.j.lk))){b.no=r.j.no;if(r.j.tok)b.tok=r.j.tok;if(r.j.lk)b.lk=r.j.lk;save();softRender()}}
+      if(ev.t==='billphone'&&r.j.lk){const b=S.bills.find(x=>x.id===ev.id);if(b&&b.lk!==r.j.lk){b.lk=r.j.lk;save();softRender()}}
       if(ev.t==='cust'&&r.j.tk){const c=custBy(ev.sid,ev.cu.phone);if(c){c.tk=r.j.tk;c.stopped=!!r.j.stopped;save()}}
     }else console.error('change refused by the server',ev,r.j);
     outbox.shift();saveOut();
@@ -3169,7 +3170,7 @@ function applyShops(m){
     if(typeof v.gstin==='string'&&c.gstin!==v.gstin){c.gstin=v.gstin;ch=true}});
   if(ch){save();softRender()}
 }
-const mapBill=x=>{const b={id:x.id,sid:x.sid,no:x.no,day:dayStrNum(x.dayStr),at:istMin(x.created),items:x.items,total:x.total,mode:x.mode,got:x.got,gstin:x.gstin};if(x.void)b.void=true;if(x.cname)b.cname=x.cname;if(x.cphone)b.cphone=x.cphone;if(x.tok)b.tok=x.tok;return b};
+const mapBill=x=>{const b={id:x.id,sid:x.sid,no:x.no,day:dayStrNum(x.dayStr),at:istMin(x.created),items:x.items,total:x.total,mode:x.mode,got:x.got,gstin:x.gstin};if(x.void)b.void=true;if(x.cname)b.cname=x.cname;if(x.cphone)b.cphone=x.cphone;if(x.tok)b.tok=x.tok;if(x.lk)b.lk=x.lk;return b};
 const dataSince={},dataBusy={};
 async function phpData(sid,force){
   if(S.role!=='admin'||!getTok()||dataBusy[sid])return;
@@ -4238,6 +4239,8 @@ function voidBill(id){
   if(ui.voidArm!==b.id){ui.voidArm=b.id;render();setTimeout(()=>{if(ui.voidArm===b.id){ui.voidArm=null;render()}},3000);return}
   ui.voidArm=null;b.void=true;save();emit({t:'void',id:b.id});ui.toast='Bill '+b.no+' cancelled. It is left out of the day totals.';render();
 }
+// The customer's private bills page, from the pages folder this app is served from. Opens with no login.
+const billLink=b=>location.origin+location.pathname.replace(/[^/]*$/,'')+'bill.html#'+b.lk;
 function receiptText(b){
   const s=shopOf(b.sid),t=tax(b.total),L=[];
   L.push('*'+s.name+'*',PLACE);if(b.gstin)L.push('GSTIN '+b.gstin);
@@ -4245,6 +4248,7 @@ function receiptText(b){
   b.items.forEach(i=>L.push(i.q+' x '+i.n+'  '+rs(i.p*i.q)));
   L.push('');if(b.gstin)L.push('Taxable value '+rsp(t.taxable),'CGST 2.5% '+rsp(t.cgst),'SGST 2.5% '+rsp(t.sgst));
   L.push('*Total '+rs(b.total)+'*','Paid by '+(b.mode==='cash'?'Cash':'UPI'));if(b.void)L.push('','CANCELLED');
+  if(b.lk)L.push('','All your bills: '+billLink(b));
   L.push('','Thank you, visit again');return L.join('\n');
 }
 function waLink(b){const p=(ui.bphone||b.cphone||'').replace(/\D/g,'');return 'https://wa.me/'+(p.length===10?'91'+p:'')+'?text='+encodeURIComponent(receiptText(b))}
@@ -4254,7 +4258,8 @@ function waAuto(id){
   ui.wabusy=1;render();
   apiPost('wa',{sid:b.sid,to:p,msg:receiptText(b)}).then(r=>{ui.wabusy=0;ui.wamsg={id,ok:!!(r&&r.ok),t:r&&r.ok?'Bill sent on WhatsApp to '+fmtPh(p)+'.':'Could not send. '+(r&&r.error?r.error:'Check the shop PIN and the connection.')};render()});
 }
-function smsLink(b){const p=(ui.bphone||b.cphone||'').replace(/\D/g,'');return 'sms:'+(p.length===10?'+91'+p:'')+'?&body='+encodeURIComponent(receiptText(b).replace(/\*/g,''))}
+function smsText(b){const s=shopOf(b.sid);return s.name+' bill '+b.no+', '+rs(b.total)+'.'+(b.tok?' Your token is '+b.tok+'.':'')+(b.lk?' See all your bills: '+billLink(b):'')+' Thank you.'}
+function smsLink(b){const p=(ui.bphone||b.cphone||'').replace(/\D/g,'');return 'sms:'+(p.length===10?'+91'+p:'')+'?&body='+encodeURIComponent(smsText(b))}
 // A number typed on the receipt is saved on the bill and in the customer list too, not only used for the message.
 function phoneIn(v,id){
   ui.bphone=v.replace(/\D/g,'').slice(-10);const b=billOf(id);

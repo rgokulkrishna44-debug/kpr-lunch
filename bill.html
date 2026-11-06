@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F4F1EB">
+<title>Your bills</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F4F1EB;--s1:#FCFBF8;--s2:#E7E3D8;--mute:#5C6E64;--text:#0D4C3C;--hi:#082F25;--moss:#7BA05B;--line:rgba(13,76,60,.12);--bad:#A63A32;--badbg:rgba(190,70,60,.09);
+--font:"Geist",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);-webkit-text-size-adjust:100%}
+body{min-height:100vh;padding:calc(28px + env(safe-area-inset-top)) 16px calc(40px + env(safe-area-inset-bottom))}
+main{max-width:520px;margin:0 auto}
+h1{font-size:30px;line-height:1.1;letter-spacing:-.02em;margin:0 0 6px;color:var(--hi)}
+.sub{color:var(--mute);font-size:15px;margin:0 0 22px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.sum{display:flex;gap:12px;margin:0 0 20px}
+.sum div{flex:1;background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.sum span{display:block;color:var(--mute);font-size:13px}.sum b{display:block;font-size:22px;margin-top:2px;color:var(--hi)}
+details{background:var(--s1);border:1px solid var(--line);border-radius:22px;margin:0 0 12px;overflow:hidden}
+summary{list-style:none;cursor:pointer;padding:16px 18px;display:flex;align-items:center;gap:12px}
+summary::-webkit-details-marker{display:none}
+.sh{flex:1;min-width:0}.sh b{display:block;font-size:16px;color:var(--hi)}.sh small{display:block;color:var(--mute);font-size:13px;margin-top:2px}
+.amt{font-size:17px;font-weight:600;color:var(--hi)}
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--badbg);color:var(--bad);margin-left:8px}
+.body{padding:0 18px 18px;border-top:1px dashed var(--line)}
+.row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:15px}
+.row small{color:var(--mute);display:block}
+.row.t{border-top:1px dashed var(--line);margin-top:6px;padding-top:12px;font-weight:700;font-size:17px;color:var(--hi)}
+.k{color:var(--mute)}
+.tok{display:inline-block;margin:10px 0 0;padding:8px 14px;border-radius:14px;background:rgba(123,160,91,.18);font-size:18px;font-weight:600;letter-spacing:.08em}
+.void .amt,.void .sh b{text-decoration:line-through;opacity:.6}
+.msg{text-align:center;color:var(--mute);padding:60px 10px;font-size:16px}
+button{font:inherit;font-weight:600;padding:12px 20px;border-radius:99px;border:0;background:var(--text);color:#fff;margin-top:14px}
+.foot{text-align:center;color:var(--mute);font-size:13px;margin-top:26px}
+</style>
+</head>
+<body>
+<main id="app"><p class="msg">Loading your bills</p></main>
+<script>
+const API='https://lunch-api.luvias.in/api';
+const app=document.getElementById('app');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rs=n=>'Rs '+(Math.round(n*100)/100).toLocaleString('en-IN',{minimumFractionDigits:Number.isInteger(n)?0:2});
+const when=ms=>new Date(ms).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'numeric',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
+function card(b,open){
+  const gst=b.gstin?`<div class="row"><span class="k">Taxable value</span><span class="mono">${b.taxable.toFixed(2)}</span></div><div class="row"><span class="k">CGST 2.5%</span><span class="mono">${b.cgst.toFixed(2)}</span></div><div class="row"><span class="k">SGST 2.5%</span><span class="mono">${b.sgst.toFixed(2)}</span></div>`:'';
+  return `<details class="${b.void?'void':''}" ${open?'open':''}><summary><div class="sh"><b>${esc(b.shop)}${b.void?'<span class="chip">Cancelled</span>':''}</b><small>${when(b.at)}</small></div><span class="amt mono">${rs(b.total)}</span></summary>
+  <div class="body"><div class="row"><span class="k">Bill no</span><span class="mono">${esc(b.no)}</span></div>${b.gstin?`<div class="row"><span class="k">GSTIN</span><span class="mono">${esc(b.gstin)}</span></div>`:''}
+  ${b.items.map(i=>`<div class="row"><span>${esc(i.n)}<small>${i.q} x ${rs(i.p)}</small></span><span class="mono">${(i.p*i.q).toFixed(2)}</span></div>`).join('')}
+  ${gst}<div class="row t"><span>Total</span><span class="mono">${rs(b.total)}</span></div><div class="row"><span class="k">Paid by</span><span>${b.mode==='cash'?'Cash':'UPI'}</span></div>
+  ${b.token?`<div class="tok mono">Token ${esc(b.token)}</div>`:''}</div></details>`;
+}
+function show(r){
+  const live=r.bills.filter(b=>!b.void),spent=live.reduce((s,b)=>s+b.total,0);
+  if(!r.bills.length){app.innerHTML='<h1>Your bills</h1><p class="msg">No bills yet.</p>';return}
+  app.innerHTML=`<h1>Your bills</h1><p class="sub">Every bill from your visits, newest first.</p>
+  <div class="sum"><div><span>Bills</span><b>${live.length}</b></div><div><span>Total spent</span><b class="mono">${rs(spent)}</b></div></div>
+  ${r.bills.map((b,i)=>card(b,i===0)).join('')}<p class="foot">Only you can see this page. Keep the link private.</p>`;
+}
+function fail(t,retry){app.innerHTML=`<h1>Your bills</h1><p class="msg">${esc(t)}${retry?'<br><button onclick="load()">Try again</button>':''}</p>`}
+async function load(){
+  const t=location.hash.slice(1);
+  if(!/^[a-f0-9]{24}$/.test(t)){fail('This link is not valid. Open the link from your message again.');return}
+  app.innerHTML='<p class="msg">Loading your bills</p>';
+  try{const r=await fetch(API+'/bills/'+t,{cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'});const j=await r.json().catch(()=>({}));
+    if(r.status===404){fail('This link is not valid. Open the link from your message again.');return}
+    if(!r.ok||!Array.isArray(j.bills)){fail('Could not load your bills right now.',true);return}
+    show(j)}catch(e){fail('No connection. Check your internet.',true)}
+}
+addEventListener('hashchange',load);load();
+</script>
+</body>
+</html>
