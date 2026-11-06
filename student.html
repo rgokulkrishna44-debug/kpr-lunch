@@ -3031,7 +3031,7 @@ async function phpFlush(){
     if(r.s===0||r.s===429||r.s>=500){sending=false;setTimeout(flush,4000);return}
     if(r.s===401){sending=false;return}
     if(r.s===200){
-      if(ev.t==='bill'&&r.j.no){const b=S.bills.find(x=>x.id===ev.b.id);if(b&&b.no!==r.j.no){b.no=r.j.no;save();softRender()}}
+      if(ev.t==='bill'&&r.j.no){const b=S.bills.find(x=>x.id===ev.b.id);if(b&&(b.no!==r.j.no||(r.j.tok&&b.tok!==r.j.tok))){b.no=r.j.no;if(r.j.tok)b.tok=r.j.tok;save();softRender()}}
       if(ev.t==='cust'&&r.j.tk){const c=custBy(ev.sid,ev.cu.phone);if(c){c.tk=r.j.tk;c.stopped=!!r.j.stopped;save()}}
     }else console.error('change refused by the server',ev,r.j);
     outbox.shift();saveOut();
@@ -3145,7 +3145,7 @@ function phpClock(){const n=Date.now(),m=istMin(n),d=dayNum(n);if(m!==S.now||d!=
 function mapOrder(x,shopSide){
   const o={id:x.id,day:dayStrNum(x.day),roll:shopSide?((x.student&&x.student.name)||'Student'):S.roll,shop:x.shop,
     items:x.items.map(i=>{const r={id:i.id,n:i.n,p:i.p,q:i.q};if(i.d)r.d=i.d;return r}),
-    total:x.total,pay:x.pay,paid:x.pay==='upi'&&x.ps==='ok',status:x.status,coming:!!x.coming,token:x.token||'',bill:x.billNo||0,pre:!!x.pre,at:istMin(x.created),hold:!!x.hold};
+    total:x.total,pay:x.pay,paid:x.pay==='upi'&&x.ps==='ok',status:x.status,coming:!!x.coming,token:x.token||'',bill:x.billNo||0,walk:!!x.walk,pre:!!x.pre,at:istMin(x.created),hold:!!x.hold};
   if(x.ps==='check'||x.ps==='ok'||x.ps==='no')o.ps=x.ps;
   if(x.refund)o.refund=x.refund;
   if(x.pay==='upi'&&x.upiAmt)o.upiAmt=x.upiAmt;
@@ -3169,7 +3169,7 @@ function applyShops(m){
     if(typeof v.gstin==='string'&&c.gstin!==v.gstin){c.gstin=v.gstin;ch=true}});
   if(ch){save();softRender()}
 }
-const mapBill=x=>{const b={id:x.id,sid:x.sid,no:x.no,day:dayStrNum(x.dayStr),at:istMin(x.created),items:x.items,total:x.total,mode:x.mode,got:x.got,gstin:x.gstin};if(x.void)b.void=true;if(x.cname)b.cname=x.cname;if(x.cphone)b.cphone=x.cphone;return b};
+const mapBill=x=>{const b={id:x.id,sid:x.sid,no:x.no,day:dayStrNum(x.dayStr),at:istMin(x.created),items:x.items,total:x.total,mode:x.mode,got:x.got,gstin:x.gstin};if(x.void)b.void=true;if(x.cname)b.cname=x.cname;if(x.cphone)b.cphone=x.cphone;if(x.tok)b.tok=x.tok;return b};
 const dataSince={},dataBusy={};
 async function phpData(sid,force){
   if(S.role!=='admin'||!getTok()||dataBusy[sid])return;
@@ -4221,15 +4221,17 @@ function bMode(m){ui.bmode=m;render()}
 function bFilter(v){ui.bq=v;const q=v.trim().toLowerCase();let any=false;document.querySelectorAll('.bt').forEach(t=>{const ok=!q||t.dataset.n.includes(q);t.style.display=ok?'':'none';if(ok)any=true});const e=document.getElementById('bnone');if(e)e.style.display=any?'none':''}
 function chgHtml(total){const got=parseInt(ui.bgot)||0;if(!got)return '<span class="mute">Type the cash given, or tap Exact</span>';if(got<total)return `<span class="bad">${rs(total-got)} short</span>`;return `Return <b class="mono">${rs(got-total)}</b>`}
 function bGotIn(v){ui.bgot=v.replace(/\D/g,'').slice(0,6);const t=draftTotal(),g=parseInt(ui.bgot)||0;document.getElementById('chg').innerHTML=chgHtml(t);document.getElementById('bsave').disabled=!!g&&g<t}
+const goodPh=v=>/^[6-9]\d{9}$/.test(cleanPh(v||''));
 function saveBill(){
   const lines=draftLines();if(!lines.length)return;
   const total=draftTotal(),mode=ui.bmode||'cash',got=mode==='cash'?(parseInt(ui.bgot)||total):total;
   if(mode==='cash'&&got<total)return;
-  const g=gstinOf(S.auth),cu=saveCust(total);
+  if(!goodPh(ui.cu.phone)&&!ui.noph){ui.phAsk=true;render();const e=document.getElementById('cuph');if(e){e.scrollIntoView({block:'center',behavior:'smooth'});e.focus()}return}
+  const g=gstinOf(S.auth),cu=saveCust(total),kitchen=USE_PHP&&ui.kt!==false;
   const b={id:newId(),sid:S.auth,no:billNo(S.auth),day:S.day,at:S.now,items:lines.map(l=>({id:l.id,n:l.n,p:l.p,q:l.q})),total,mode,got,gstin:g};
   if(cu){b.cname=cu.name;b.cphone=cu.phone}
-  (S.bills=S.bills||[]).push(b);ui.bill[S.auth]={};ui.bgot='';ui.bphone=cu?cu.phone:'';ui.cu={};
-  save();emit({t:'bill',b});ui.sheet={type:'receipt',id:b.id};render();
+  (S.bills=S.bills||[]).push(b);ui.bill[S.auth]={};ui.bgot='';ui.bphone=cu?cu.phone:'';ui.cu={};ui.phAsk=false;ui.noph=false;
+  save();emit({t:'bill',b:kitchen?Object.assign({},b,{kitchen:true}):b});ui.sheet={type:'receipt',id:b.id};render();
 }
 function voidBill(id){
   const b=billOf(id);if(!b||b.void)return;
@@ -4239,7 +4241,7 @@ function voidBill(id){
 function receiptText(b){
   const s=shopOf(b.sid),t=tax(b.total),L=[];
   L.push('*'+s.name+'*',PLACE);if(b.gstin)L.push('GSTIN '+b.gstin);
-  L.push('','Bill '+b.no,billDate(b.day)+', '+fmt(b.at),'');
+  L.push('','Bill '+b.no,billDate(b.day)+', '+fmt(b.at));if(b.tok)L.push('*Your token is '+b.tok+'*, say it at the counter');L.push('');
   b.items.forEach(i=>L.push(i.q+' x '+i.n+'  '+rs(i.p*i.q)));
   L.push('');if(b.gstin)L.push('Taxable value '+rsp(t.taxable),'CGST 2.5% '+rsp(t.cgst),'SGST 2.5% '+rsp(t.sgst));
   L.push('*Total '+rs(b.total)+'*','Paid by '+(b.mode==='cash'?'Cash':'UPI'));if(b.void)L.push('','CANCELLED');
@@ -4252,12 +4254,20 @@ function waAuto(id){
   ui.wabusy=1;render();
   apiPost('wa',{sid:b.sid,to:p,msg:receiptText(b)}).then(r=>{ui.wabusy=0;ui.wamsg={id,ok:!!(r&&r.ok),t:r&&r.ok?'Bill sent on WhatsApp to '+fmtPh(p)+'.':'Could not send. '+(r&&r.error?r.error:'Check the shop PIN and the connection.')};render()});
 }
-function phoneIn(v,id){ui.bphone=v.replace(/\D/g,'').slice(-10);const a=document.getElementById('wa');if(a)a.href=waLink(billOf(id))}
+function smsLink(b){const p=(ui.bphone||b.cphone||'').replace(/\D/g,'');return 'sms:'+(p.length===10?'+91'+p:'')+'?&body='+encodeURIComponent(receiptText(b).replace(/\*/g,''))}
+// A number typed on the receipt is saved on the bill and in the customer list too, not only used for the message.
+function phoneIn(v,id){
+  ui.bphone=v.replace(/\D/g,'').slice(-10);const b=billOf(id);
+  ['wa','wa2','sms'].forEach(k=>{const a=document.getElementById(k);if(a)a.href=k==='sms'?smsLink(b):waLink(b)});
+  const p=ui.bphone;if(!b||!goodPh(p)||b.cphone===p)return;
+  b.cphone=p;const ex=custBy(b.sid,p),rec={id:ex?ex.id:newId(),sid:b.sid,phone:p,name:(ex&&ex.name)||b.cname||'Customer',year:(ex&&ex.year)||'',ok:ex?ex.ok:true,first:ex?ex.first:b.day,last:b.day,visits:(ex?ex.visits:0)+1,spent:(ex?ex.spent:0)+b.total};
+  if(ex){rec.tk=ex.tk;rec.stopped=ex.stopped}upsertCust(rec);pushCust(rec);save();emit({t:'billphone',sid:b.sid,id:b.id,phone:p});
+}
 function receiptHtml(b){
   const s=shopOf(b.sid),t=tax(b.total);
   return `<div class="receipt">${b.void?'<span class="rc-void">CANCELLED</span>':''}
   <div class="rc-c"><b class="rc-shop">${s.name}</b><div>${PLACE}</div>${b.gstin?`<div>GSTIN ${esc(b.gstin)}</div>`:''}<div class="rc-t">${b.gstin?'TAX INVOICE':'BILL'}</div></div>
-  <div class="rc-hr"></div><div class="rc-row"><span>Bill no</span><span>${b.no}</span></div><div class="rc-row"><span>Date</span><span>${billDate(b.day)}, ${fmt(b.at)}</span></div>${b.cname?`<div class="rc-row"><span>Customer</span><span>${esc(b.cname)}</span></div>`:''}
+  <div class="rc-hr"></div><div class="rc-row"><span>Bill no</span><span>${b.no}</span></div>${b.tok?`<div class="rc-row rc-tot"><span>TOKEN</span><span>${b.tok}</span></div>`:''}<div class="rc-row"><span>Date</span><span>${billDate(b.day)}, ${fmt(b.at)}</span></div>${b.cname&&b.cname!=='Customer'?`<div class="rc-row"><span>Customer</span><span>${esc(b.cname)}</span></div>`:''}
   <div class="rc-hr"></div><div class="rc-it rc-h"><span>Item</span><span>Qty</span><span>Amount</span></div>
   ${b.items.map(i=>`<div class="rc-it"><span>${esc(i.n)}<br><small>@ ${rs(i.p)}</small></span><span>${i.q}</span><span>${(i.p*i.q).toFixed(2)}</span></div>`).join('')}
   <div class="rc-hr"></div>${b.gstin?`<div class="rc-row"><span>Taxable value</span><span>${t.taxable.toFixed(2)}</span></div><div class="rc-row"><span>CGST 2.5%</span><span>${t.cgst.toFixed(2)}</span></div><div class="rc-row"><span>SGST 2.5%</span><span>${t.sgst.toFixed(2)}</span></div>`:''}
@@ -4270,9 +4280,9 @@ function receiptSheet(){
   const b=billOf(ui.sheet.id);if(!b)return '';
   return `<div class="sheet-h"><b>${b.void?'Cancelled bill':'Bill saved'}</b><button class="x" onclick="closeSheet()">Close</button></div>
   ${receiptHtml(b)}
-  <div class="racts"><label class="lbl" for="wph" style="margin:6px 0 0">Customer WhatsApp number, optional</label>
+  <div class="racts"><label class="lbl" for="wph" style="margin:6px 0 0">Customer phone number, saved with this bill</label>
   <input id="wph" class="input mono" inputmode="numeric" placeholder="98765 43210" value="${esc(ui.bphone||b.cphone||'')}" oninput="phoneIn(this.value,${b.id})">
-  <div class="row2">${pinOf(b.sid)?`<button id="wauto" class="btn" onclick="waAuto(${b.id})" ${ui.wabusy?'disabled':''}>${ui.wabusy?'Sending':'Send on WhatsApp'}</button>`:`<a id="wa" class="btn" href="${esc(waLink(b))}" target="_blank" rel="noopener">Send on WhatsApp</a>`}<button class="btn ghost" onclick="window.print()">Print bill</button></div>
+  <div class="row2">${pinOf(b.sid)?`<button id="wauto" class="btn" onclick="waAuto(${b.id})" ${ui.wabusy?'disabled':''}>${ui.wabusy?'Sending':'Send on WhatsApp'}</button>`:`<a id="wa" class="btn" href="${esc(waLink(b))}" target="_blank" rel="noopener">Send on WhatsApp</a>`}<a id="sms" class="btn ghost" href="${esc(smsLink(b))}">Send as SMS</a><button class="btn ghost" style="grid-column:1/-1" onclick="window.print()">Print bill</button></div>
   ${ui.wamsg&&ui.wamsg.id===b.id?`<p id="wamsg" class="small" style="margin:0;text-align:center;font-weight:600;color:${ui.wamsg.ok?'#127A52':'#A23B2A'}">${esc(ui.wamsg.t)}</p>`:''}
   ${pinOf(b.sid)?`<a id="wa" class="fine" style="justify-self:center" href="${esc(waLink(b))}" target="_blank" rel="noopener">or open it in my own WhatsApp</a>`:''}
   <button class="btn ok lg" style="margin-top:4px" onclick="closeSheet()">New bill</button>
@@ -4290,6 +4300,7 @@ function billingView(){
   ${g?`<div class="bkv"><span>Taxable value</span><span class="mono">${rsp(tx.taxable)}</span></div><div class="bkv"><span>CGST 2.5%</span><span class="mono">${rsp(tx.cgst)}</span></div><div class="bkv"><span>SGST 2.5%</span><span class="mono">${rsp(tx.sgst)}</span></div>`:''}
   <div class="b-tot"><span>Total</span><b class="mono">${rs(total)}</b></div>
   ${cuHtml()}
+  ${USE_PHP?`<label class="tick" style="margin:10px 0"><input type="checkbox" ${ui.kt!==false?'checked':''} onchange="ui.kt=this.checked;render()"> Send to kitchen with a token</label>`:''}
   <div class="seg"><button class="${mode==='cash'?'on':''}" onclick="bMode('cash')">Cash</button><button class="${mode==='upi'?'on':''}" onclick="bMode('upi')">UPI</button></div>
   ${mode==='cash'?`<label class="lbl" for="bgot" style="margin:16px 0 8px">Cash received</label><input id="bgot" class="input mono" inputmode="numeric" autocomplete="off" placeholder="${total}" value="${esc(ui.bgot||'')}" oninput="bGotIn(this.value)">
   <div class="quick">${quick.map(v=>`<button onclick="ui.bgot='${v}';render()">${v===total?'Exact':rs(v)}</button>`).join('')}</div><div id="chg" class="chg">${chgHtml(total)}</div>
@@ -4308,7 +4319,7 @@ function billingView(){
 }
 function dayClose(sid){
   const live=billsOf(sid,S.day).filter(b=>!b.void);
-  const ord=todays(sid).filter(o=>o.status!=='cancelled');
+  const ord=todays(sid).filter(o=>o.status!=='cancelled'&&!o.walk);   // walk in tickets are already money on a counter bill
   const appUpi=ord.filter(o=>o.pay==='upi'&&!checking(o)),appCash=ord.filter(o=>o.pay==='cash'&&(o.cashPaid||0)>0);
   const c={cCash:sum(live.filter(b=>b.mode==='cash'),b=>b.total),cUpi:sum(live.filter(b=>b.mode==='upi'),b=>b.total),aUpi:sum(appUpi,o=>o.total),aCash:sum(appCash,o=>o.cashPaid),bills:live.length,appN:appUpi.length+appCash.length};
   c.total=c.cCash+c.cUpi+c.aUpi+c.aCash;c.expCash=c.cCash+c.aCash;c.expUpi=c.cUpi+c.aUpi;
@@ -4568,8 +4579,9 @@ function cuIn(k,v){
 function cuYear(y){ui.cu.year=ui.cu.year===y?'':y;render()}
 function cuHtml(){
   const c=ui.cu,p=cleanPh(c.phone),ex=p.length===10&&custBy(S.auth,p);
-  return `<details class="cu" ${c.open||p?'open':''} ontoggle="ui.cu.open=this.open"><summary>Customer details <span class="mute small">for WhatsApp bill and offers</span></summary>
-  <div class="cu-in"><input id="cuph" class="input mono" inputmode="numeric" autocomplete="off" placeholder="WhatsApp number" value="${esc(c.phone||'')}" oninput="cuIn('phone',this.value)">
+  return `<details class="cu" open><summary>Customer phone <span class="mute small">the bill goes here on WhatsApp or SMS</span></summary>
+  ${ui.phAsk&&!goodPh(c.phone)?`<p class="small" style="margin:6px 0;font-weight:600;color:#A23B2A">Ask for the customer's 10 digit number. <button class="fine" style="display:inline;margin:0" onclick="ui.noph=true;saveBill()">Customer has no number, skip</button></p>`:''}
+  <div class="cu-in"><input id="cuph" class="input mono" inputmode="numeric" autocomplete="off" placeholder="Customer phone number" value="${esc(c.phone||'')}" oninput="cuIn('phone',this.value)">
   <div id="cuhint" class="cu-h">${ex?`<span class="chip ok">Regular, ${plural(ex.visits,'visit')}</span>`:p.length===10?'<span class="chip light">New customer</span>':''}</div>
   <input id="cuname" class="input" autocomplete="off" placeholder="Name" value="${esc(c.name||'')}" oninput="cuIn('name',this.value)">
   <div class="ychips">${YEARS.map(y=>`<button class="${c.year===y?'on':''}" onclick="cuYear('${y}')">${y}</button>`).join('')}</div>
