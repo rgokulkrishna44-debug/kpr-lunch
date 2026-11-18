@@ -3421,7 +3421,8 @@ const ICON = {
   closing:sv('<path d="M4 20V11M10 20V5M16 20v-6M21 20H3"/>'),
   pre:sv('<path d="M4 7h16v13H4zM4 11h16M9 4v5M15 4v5"/>'),
   settings:sv('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>'),
-  messages:sv('<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 20l1.2-5.2A8.5 8.5 0 1 1 21 11.5z"/>')
+  messages:sv('<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.5 0-3-.4-4.2-1.1L3 20l1.2-5.2A8.5 8.5 0 1 1 21 11.5z"/>'),
+  sms:sv('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/>')
 };
 
 // Unclaimed orders expire when lunch ends; an unclaimed cash order is a strike.
@@ -4132,10 +4133,10 @@ function settingsView(){
 }
 function shopDash(r){
   const s=shopOf(S.auth),st=S.shops[S.auth];
-  const views={pre:preView,records:recordsView,students:studentsView,counts:countsView,counter:counterView,orders:kitchenView,billing:billingView,closing:closingView,analytics:analyticsView,customers:customersView,menu:shopMenuView,settings:settingsView,messages:messagesView};
+  const views={pre:preView,records:recordsView,students:studentsView,counts:countsView,counter:counterView,orders:kitchenView,billing:billingView,closing:closingView,analytics:analyticsView,customers:customersView,menu:shopMenuView,settings:settingsView,messages:messagesView,sms:smsView};
   const v=views[r.name]&&(USE_PHP||(r.name!=='students'&&r.name!=='pre'&&r.name!=='records'&&r.name!=='counts'))?r.name:'counter';
-  const titles={pre:'Preorders',counts:'Order count',records:'Records',students:'Students',counter:'Counter',orders:'Kitchen',billing:'Billing',closing:'Day closing',analytics:'Analytics',customers:'Customers',menu:'Menu',settings:'Settings',messages:'Messages'};
-  const links=[['counter','Counter','shop'],['orders','Kitchen','shop-orders'],['billing','Billing','shop-billing'],['closing','Closing','shop-closing'],['analytics','Analytics','shop-analytics'],['customers','Customers','shop-customers'],['menu','Menu','shop-menu'],['settings','Settings','shop-settings'],['messages','Messages','shop-messages']];
+  const titles={pre:'Preorders',counts:'Order count',records:'Records',students:'Students',counter:'Counter',orders:'Kitchen',billing:'Billing',closing:'Day closing',analytics:'Analytics',customers:'Customers',menu:'Menu',settings:'Settings',messages:'Messages',sms:'SMS texts'};
+  const links=[['counter','Counter','shop'],['orders','Kitchen','shop-orders'],['billing','Billing','shop-billing'],['closing','Closing','shop-closing'],['analytics','Analytics','shop-analytics'],['customers','Customers','shop-customers'],['menu','Menu','shop-menu'],['settings','Settings','shop-settings'],['messages','Messages','shop-messages'],['sms','SMS','shop-sms']];
   if(USE_PHP){links.splice(5,0,['records','Records','shop-records']);links.splice(7,0,['students','Students','shop-students']);links.splice(2,0,['pre','Preorders','shop-pre']);links.splice(links.findIndex(x=>x[0]==='analytics')+1,0,['counts','Order count','shop-counts'])}
   const pending=liveOf(S.auth).filter(o=>o.status==='placed'||o.status==='cooking').length,checks=toCheck(S.auth).length;
   const status=!st.open?'Not taking orders':ordering()?'Taking orders till '+fmt(CUTOFF):'Ordering closed';
@@ -4744,6 +4745,39 @@ function messagesView(){
   ${!pin?'<p class="fine" style="margin-top:10px">Set the shop PIN once in <a href="#shop-customers">Customers</a> to turn auto-send on.</p>':''}</div>
   ${list.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Bill</th><th>Phone</th><th>Status</th><th>Time</th><th></th></tr></thead><tbody>${list.map(w=>{const b=billOf(w.id);return `<tr><td class="mono">${b?esc(b.no):'Bill #'+w.id}</td><td class="mono">${fmtPh(w.ph)}</td><td>${w.ok?'<span class="chip ok">Sent</span>':'<span class="chip bad">Failed</span>'}<div class="mute small">${esc(w.t||'')}</div></td><td class="small">${b?billDate(b.day)+', ':''}${fmt(w.at)}</td><td>${pin&&b?`<button class="btn sm ghost" onclick="waResend(${w.id})">Send again</button>`:''}</td></tr>`}).join('')}</tbody></table></div>`:`<div class="card pad mute small">No messages yet. They appear here after a bill with a customer number is saved.</div>`}`;
 }
+/* ---------- SMS texts: which sender is live, the queue, and a test text ---------- */
+function sms(){return ui.sms||(ui.sms={data:null,err:'',busy:false,sig:'',to:'',testing:false})}
+async function smsLoad(){
+  const g=sms(),r=await php('GET','admin/sms');
+  if(r.s!==200){g.err=(r.j&&r.j.error)||'Could not load SMS status';if(!g.data)g.data={mode:'off',today:{},msgs:[]};softRender();return}
+  const sig=JSON.stringify(r.j);g.err='';if(sig===g.sig)return;g.sig=sig;g.data=r.j;softRender();
+}
+async function smsTest(){
+  const g=sms(),ph=(g.to||'').replace(/\D/g,'');
+  if(!/^[6-9]\d{9}$/.test(ph)){ui.toast='Enter a 10 digit mobile number';render();return}
+  g.testing=true;render();
+  const r=await php('POST','admin/sms/test',{phone:ph});
+  g.testing=false;
+  ui.toast=r.s===200?'Test text sent to '+ph+'. Check the phone in a minute.':((r.j&&(r.j.error||r.j.err))||'The test text failed. Try again.');
+  await smsLoad();render();
+}
+function smsView(){
+  const g=sms();
+  if(!g.data){if(!g.busy){g.busy=true;setTimeout(()=>smsLoad().finally(()=>{g.busy=false}),0)}return '<p class="mute">Loading SMS status...</p>'}
+  const d=g.data,t=d.today||{},m=d.msgs||[];
+  const mode=d.mode==='gateway'?`<span class="chip ok">Gateway: ${esc(d.driver||'sms')}</span>`:d.mode==='phone'?'<span class="chip warn">Phone app</span>':'<span class="chip bad">Off</span>';
+  const st={wait:'<span class="chip warn">Waiting</span>',sending:'<span class="chip line">Sending</span>',sent:'<span class="chip ok">Sent</span>',failed:'<span class="chip bad">Failed</span>',late:'<span class="chip line">Too late</span>'};
+  return `<div class="card pad" style="margin-bottom:14px"><div class="sec-h" style="margin-bottom:6px"><h3>Bill texts</h3>${mode}</div>
+  <p class="mute small" style="margin:0">Every collected order and every saved bill with a customer number is texted automatically. ${d.mode==='gateway'?'Texts go out through the SMS gateway on the server, no phone needed.':d.mode==='phone'?'Texts wait for the KPR Bill Sender app on the shop phone.':'No sender is set up yet, so nothing goes out.'}</p></div>
+  <div class="kpis"><div class="kpi"><span>Sent today</span><b>${t.sent||0}</b><small>of ${d.cap||90} daily cap</small></div><div class="kpi"><span>Waiting</span><b>${t.wait||0}</b></div><div class="kpi"><span>Failed today</span><b>${t.failed||0}</b></div><div class="kpi"><span>Too late today</span><b>${t.late||0}</b><small>queued over 6 hours</small></div></div>
+  <div class="card pad" style="margin-top:14px"><div class="sec-h" style="margin-bottom:6px"><h3>Send a test text</h3></div>
+  <div style="display:flex;gap:8px;max-width:380px"><input class="input mono" inputmode="numeric" maxlength="10" placeholder="10 digit mobile number" value="${esc(g.to||'')}" oninput="sms().to=this.value">
+  <button class="btn" ${g.testing?'disabled':''} onclick="smsTest()">${g.testing?'Sending...':'Send test'}</button></div>
+  <p class="fine" style="margin-top:8px">Only works when the gateway is on. Use your own number first to confirm texts really arrive.</p>${g.err?`<p class="fine" style="color:var(--bad)">${esc(g.err)}</p>`:''}</div>
+  <h2 class="h2">Latest texts</h2>
+  ${m.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Time</th><th>To</th><th>Kind</th><th>Shop</th><th>Status</th></tr></thead><tbody>${m.map(x=>`<tr><td class="small">${new Date(x.at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}</td><td class="mono">${esc(x.to)}</td><td>${x.kind==='bill'?'Bill':'Order'}</td><td>${esc(shopOf(x.shop).name)}</td><td>${st[x.status]||esc(x.status)}${x.err?`<div class="mute small">${esc(x.err)}</div>`:''}</td></tr>`).join('')}</tbody></table></div>`
+  :`<div class="card pad mute small">No texts yet.</div>`}`;
+}
 function customersView(){
   if(ui.off.msg===undefined)ui.off.msg=offDefault(S.auth);
   const sid=S.auth,all=custsOf(sid),q=(ui.cq||'').trim().toLowerCase(),fy=ui.cy||'';
@@ -4839,7 +4873,7 @@ if(USE_PHP){
   php('GET','clock').then(r=>{if(r.s!==200)return;if(r.j.autoSms)ui.autoSms=true;if(r.j.noTimers)clockOff();if(r.j.noTimers||r.j.autoSms)softRender()});
   setInterval(()=>{if(document.hidden)return;if(phpClock()&&!ui.lg)softRender();phpSync();
     if(MODE==='shop'&&S.role==='admin'&&getTok()){askPoll();if(ui.pk===undefined){ui.pk=null;pkLoad()}}
-    if(MODE==='shop'&&S.auth&&S.role==='admin'){tick++;pullCusts(S.auth);if(location.hash==='#shop-pre')preLoad();if(location.hash==='#shop-records'&&tick%3===0)recLoad();if(location.hash==='#shop-analytics'&&tick%10===0)anLoad();if(location.hash==='#shop-counts'&&tick%6===0)cnLoad()}},MODE==='shop'?3000:5000);
+    if(MODE==='shop'&&S.auth&&S.role==='admin'){tick++;pullCusts(S.auth);if(location.hash==='#shop-pre')preLoad();if(location.hash==='#shop-sms'&&tick%4===0)smsLoad();if(location.hash==='#shop-records'&&tick%3===0)recLoad();if(location.hash==='#shop-analytics'&&tick%10===0)anLoad();if(location.hash==='#shop-counts'&&tick%6===0)cnLoad()}},MODE==='shop'?3000:5000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){phpClock();phpSync()}});
 }
 render();
