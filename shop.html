@@ -4765,7 +4765,9 @@ function smsView(){
   const g=sms();
   if(!g.data){if(!g.busy){g.busy=true;setTimeout(()=>smsLoad().finally(()=>{g.busy=false}),0)}return '<p class="mute">Loading SMS status...</p>'}
   const d=g.data,t=d.today||{},m=d.msgs||[];
-  const mode=d.mode==='gateway'?`<span class="chip ok">Gateway: ${esc(d.driver||'sms')}</span>`:d.mode==='phone'?'<span class="chip warn">Phone app</span>':'<span class="chip bad">Off</span>';
+  const seen=d.phoneSeen?Math.max(0,Math.round((Date.now()-d.phoneSeen)/1000)):0;
+  const seenTxt=!d.phoneSeen?'never connected':seen<90?'connected just now':seen<3600?'last seen '+Math.floor(seen/60)+' min ago':'OFFLINE, last seen '+Math.floor(seen/3600)+' h '+Math.floor((seen%3600)/60)+' min ago';
+  const mode=d.mode==='gateway'?`<span class="chip ok">Gateway: ${esc(d.driver||'sms')}</span>`:d.mode==='phone'?`<span class="chip warn">Phone app</span> <span class="chip ${seen>600?'bad':'ok'}">${esc(seenTxt)}</span>`:'<span class="chip bad">Off</span>';
   const st={wait:'<span class="chip warn">Waiting</span>',sending:'<span class="chip line">Sending</span>',sent:'<span class="chip ok">Sent</span>',failed:'<span class="chip bad">Failed</span>',late:'<span class="chip line">Too late</span>'};
   return `<div class="card pad" style="margin-bottom:14px"><div class="sec-h" style="margin-bottom:6px"><h3>Bill texts</h3>${mode}</div>
   <p class="mute small" style="margin:0">Every collected order and every saved bill with a customer number is texted automatically. ${d.mode==='gateway'?'Texts go out through the SMS gateway on the server, no phone needed.':d.mode==='phone'?'Texts wait for the KPR Bill Sender app on the shop phone.':'No sender is set up yet, so nothing goes out.'}</p></div>
