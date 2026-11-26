@@ -2941,7 +2941,7 @@ const MODE = 'student'; // 'student' or 'shop', filled in by build.py
 const PHP = 'https://lunch-api.luvias.in/api'; // base URL of the PHP API (build.py --php URL). Empty = the old ntfy + n8n build.
 const USE_PHP = !!PHP;
 const K = 'kprlunch_v8_' + MODE + (USE_PHP ? '_php' : '');
-const RELAY = 'https://ntfy.sh/', TOPIC = 'kprlunch-0c492eeeb6f89377';
+const RELAY = 'https://ntfy.sh/', TOPIC = '';
 const ROLL_RE = /^\d{2}[A-Z]{2}\d{3}$/; // 24CS068: joining year, department, number
 const ROLL_YEARS = [20, 26];
 document.title = MODE === 'shop' ? 'KPR Lunch Counter' : 'KPR Lunch';
@@ -4772,10 +4772,10 @@ function smsView(){
   return `<div class="card pad" style="margin-bottom:14px"><div class="sec-h" style="margin-bottom:6px"><h3>Bill texts</h3>${mode}</div>
   <p class="mute small" style="margin:0">Every collected order and every saved bill with a customer number is texted automatically. ${d.mode==='gateway'?'Texts go out through the SMS gateway on the server, no phone needed.':d.mode==='phone'?'Texts wait for the KPR Bill Sender app on the shop phone.':'No sender is set up yet, so nothing goes out.'}</p></div>
   <div class="kpis"><div class="kpi"><span>Sent today</span><b>${t.sent||0}</b><small>of ${d.cap||90} daily cap</small></div><div class="kpi"><span>Waiting</span><b>${t.wait||0}</b></div><div class="kpi"><span>Failed today</span><b>${t.failed||0}</b></div><div class="kpi"><span>Too late today</span><b>${t.late||0}</b><small>queued over 6 hours</small></div></div>
-  <div class="card pad" style="margin-top:14px"><div class="sec-h" style="margin-bottom:6px"><h3>Send a test text</h3></div>
+  ${S.scope==='*'?`<div class="card pad" style="margin-top:14px"><div class="sec-h" style="margin-bottom:6px"><h3>Send a test text</h3></div>
   <div style="display:flex;gap:8px;max-width:380px"><input class="input mono" inputmode="numeric" maxlength="10" placeholder="10 digit mobile number" value="${esc(g.to||'')}" oninput="sms().to=this.value">
   <button class="btn" ${g.testing?'disabled':''} onclick="smsTest()">${g.testing?'Sending...':'Send test'}</button></div>
-  <p class="fine" style="margin-top:8px">Only works when the gateway is on. Use your own number first to confirm texts really arrive.</p>${g.err?`<p class="fine" style="color:var(--bad)">${esc(g.err)}</p>`:''}</div>
+  <p class="fine" style="margin-top:8px">Only works when the gateway is on. Use your own number first to confirm texts really arrive.</p>${g.err?`<p class="fine" style="color:var(--bad)">${esc(g.err)}</p>`:''}</div>`:`<p class="fine" style="margin-top:14px">A system administrator manages shared SMS gateway tests.</p>`}
   <h2 class="h2">Latest texts</h2>
   ${m.length?`<div class="card tblwrap"><table class="tbl"><thead><tr><th>Time</th><th>To</th><th>Kind</th><th>Shop</th><th>Status</th></tr></thead><tbody>${m.map(x=>`<tr><td class="small">${new Date(x.at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}</td><td class="mono">${esc(x.to)}</td><td>${x.kind==='bill'?'Bill':'Order'}</td><td>${esc(shopOf(x.shop).name)}</td><td>${st[x.status]||esc(x.status)}${x.err?`<div class="mute small">${esc(x.err)}</div>`:''}</td></tr>`).join('')}</tbody></table></div>`
   :`<div class="card pad mute small">No texts yet.</div>`}`;
