@@ -3141,9 +3141,11 @@ function toShopPage(){const t=getTok();setTok('');try{localStorage.setItem(TOK_K
 async function phpRestore(){
   if(!USE_PHP)return;
   if(!getTok()){if(S.role||S.roll)phpExpired();return}   // saved under the old shared sign in: ask again
-  if(MODE==='shop'&&S.role==='admin')return;
+  if(MODE==='shop'&&S.role==='admin'){schedulePhpSync(Math.random()*5000);return}
+  await new Promise(resolve=>setTimeout(resolve,Math.random()*5000));
+  if(!getTok())return;
   const r=await php('GET','me');
-  if(r.s!==200||!r.j.user)return;
+  if(r.s!==200||!r.j.user){if(getTok())schedulePhpSync(Math.random()*5000);return}
   const u=r.j.user;if(u.lk&&S.lk!==u.lk){S.lk=u.lk;save()}
   if(u.role==='admin'&&MODE==='student'&&S.roll){setTok('');phpExpired();return}   // old shared sign in left a shop token on the student page
   if(u.role==='admin'){
@@ -3173,12 +3175,14 @@ function mapOrder(x,shopSide){
   if(shopSide&&x.student)o.phone=x.student.phone;
   return o;
 }
-let syncSig='',syncBusy=false,syncTimer=0,syncFailures=0;
+let syncSig='',syncBusy=false,syncWakeup=false,syncTimer=0,syncFailures=0,syncIdleRounds=0;
 const syncBase=MODE==='shop'?3000:5000;
+const syncIdleMax=MODE==='shop'?syncBase:60000;
 function schedulePhpSync(delay){
   clearTimeout(syncTimer);
-  const jitter=(Math.random()-.5)*Math.min(1000,syncBase*.3);
-  syncTimer=setTimeout(()=>{syncTimer=0;if(document.hidden){schedulePhpSync(syncBase);return}phpSync()},Math.max(0,(delay===undefined?syncBase:delay)+jitter));
+  const wait=delay===undefined?syncBase:Math.max(0,delay);
+  const jitter=wait===0?0:(Math.random()-.5)*Math.min(1000,syncBase*.3);
+  syncTimer=setTimeout(()=>{syncTimer=0;if(document.hidden){schedulePhpSync(syncBase);return}phpSync()},Math.max(0,wait+jitter));
 }
 // Open or closed, special, cap and sold out come from the database, so every phone and counter sees the same thing.
 function applyShops(m){
@@ -3244,7 +3248,8 @@ function refundCard(){
   return `<div class="card pad paycheck" style="margin-bottom:14px"><div class="sec-h"><h3>Refunds to give</h3><span class="chip warn mono">${l.length}</span></div><p class="mute small" style="margin:0 0 6px">These students cancelled after paying. Send the money back on UPI, then tap Refund done.</p>${l.map(o=>`<div class="pc"><div class="pc-b"><div class="pc-amt mono">Bill ${o.billNo}, ${rsp(o.upiAmt||o.total)}</div><div class="mute small">${esc(o.student.name)}, ${esc(o.student.phone)}</div><div class="mute small">${o.ps==='check'?'Not confirmed by you. Refund only if this amount reached you.':'Payment was confirmed.'}</div></div><div class="pc-a"><button class="btn sm ok" onclick="refundDone(${o.id})">Refund done</button></div></div>`).join('')}</div>`;
 }
 async function phpSync(){
-  if(syncBusy||!getTok())return;
+  if(syncBusy){syncWakeup=true;return}
+  if(!getTok())return;
   const shopSide=MODE==='shop';
   if(shopSide?(!S.auth||S.role!=='admin'):!S.roll)return;
   clearTimeout(syncTimer);syncTimer=0;syncBusy=true;
@@ -3258,6 +3263,11 @@ async function phpSync(){
       if(r.j.shops)applyShops(r.j.shops);
       if(shopSide){const rs=JSON.stringify(r.j.refunds||[]);if(rs!==ui.refSig){ui.refSig=rs;ui.refunds=r.j.refunds||[];softRender()}}
       const list=r.j.orders.map(x=>mapOrder(x,shopSide)).filter(okOrder),sig=JSON.stringify(list);
+      if(!shopSide){
+        const hasLive=list.some(o=>['placed','cooking','ready'].includes(o.status)||o.ps==='check'||o.refund==='due');
+        if(hasLive){syncIdleRounds=0;if(syncFailures===0)next=syncBase}
+        else{syncIdleRounds=Math.min(4,syncIdleRounds+1);if(syncFailures===0)next=Math.min(syncIdleMax,syncBase*Math.pow(2,syncIdleRounds))}
+      }else syncIdleRounds=0;
       if(shopSide&&(r.j.preChecks||0)!==(ui.preChecks||0)){ui.preChecks=r.j.preChecks||0;softRender()}
       const was=shopSide?[]:S.orders.filter(checking).map(o=>o.id),moved=list.find(o=>was.includes(o.id)&&(o.ps==='ok'||o.ps==='no'));
       if(sig!==syncSig){syncSig=sig;S.orders=(shopSide?S.orders.filter(o=>o.shop!==S.auth):[]).concat(list);save();softRender()}
@@ -3265,7 +3275,9 @@ async function phpSync(){
     }
   }finally{
     syncBusy=false;
-    if(syncFailures===0)next=Math.max(0,syncBase-(performance.now()-started));
+    if(syncWakeup&&syncFailures===0){syncWakeup=false;schedulePhpSync(0);return}
+    syncWakeup=false;
+    if(syncFailures===0&&next===syncBase)next=Math.max(0,syncBase-(performance.now()-started));
     schedulePhpSync(next);
   }
 }
@@ -3282,7 +3294,7 @@ async function phpCreateOrder(sid,paid){
   if(ui.placing)return;ui.placing=true;
   const r=await php('POST','orders',{shop:sid,pay:paid?'upi':'cash',items:cartLines(sid).map(l=>({id:l.id,q:l.qty})),paise:paid&&ui.sheet?ui.sheet.paise:0,pre:!!(ui.sheet&&ui.sheet.pre)});
   ui.placing=false;
-  if(r.s===201&&r.j.order){const o=mapOrder(r.j.order,false);upsertLocal(o);S.carts[sid]={};ui.sheet=null;save();syncSig='';go('order-'+o.id);return}
+  if(r.s===201&&r.j.order){const o=mapOrder(r.j.order,false);upsertLocal(o);S.carts[sid]={};ui.sheet=null;save();syncSig='';syncIdleRounds=0;go('order-'+o.id);schedulePhpSync(0);return}
   const why=(r.j&&r.j.error)||'Could not place the order. Try again.';
   if(ui.sheet&&ui.sheet.type==='pay')ui.sheet.err=why;else ui.toast=why;   // money may already have left: say so on the screen they are looking at
   render();
@@ -4887,7 +4899,7 @@ if(USE_PHP){
   phpClock();
   if(MODE==='student'&&getTok()&&S.role==='admin'&&!S.roll)toShopPage();
   else{phpRestore();autoSignIn()}
-  php('GET','clock').then(r=>{if(r.s!==200)return;if(r.j.autoSms)ui.autoSms=true;if(r.j.noTimers)clockOff();if(r.j.noTimers||r.j.autoSms)softRender()});
+  setTimeout(()=>php('GET','clock').then(r=>{if(r.s!==200)return;if(r.j.autoSms)ui.autoSms=true;if(r.j.noTimers)clockOff();if(r.j.noTimers||r.j.autoSms)softRender()}),Math.random()*5000);
   setInterval(()=>{if(document.hidden)return;if(phpClock()&&!ui.lg)softRender();
     if(MODE==='shop'&&S.role==='admin'&&getTok()){askPoll();if(ui.pk===undefined){ui.pk=null;pkLoad()}}
     if(MODE==='shop'&&S.auth&&S.role==='admin'){tick++;pullCusts(S.auth);if(location.hash==='#shop-pre')preLoad();if(location.hash==='#shop-sms'&&tick%4===0)smsLoad();if(location.hash==='#shop-records'&&tick%3===0)recLoad();if(location.hash==='#shop-analytics'&&tick%10===0)anLoad();if(location.hash==='#shop-counts'&&tick%6===0)cnLoad()}},MODE==='shop'?3000:5000);
@@ -4896,7 +4908,6 @@ if(USE_PHP){
 render();
 connect();
 flush();
-if(USE_PHP)phpSync();
 </script>
 </body>
 </html>
