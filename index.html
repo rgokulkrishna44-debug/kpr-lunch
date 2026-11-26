@@ -3173,7 +3173,13 @@ function mapOrder(x,shopSide){
   if(shopSide&&x.student)o.phone=x.student.phone;
   return o;
 }
-let syncSig='',syncBusy=false;
+let syncSig='',syncBusy=false,syncTimer=0,syncFailures=0;
+const syncBase=MODE==='shop'?3000:5000;
+function schedulePhpSync(delay){
+  clearTimeout(syncTimer);
+  const jitter=(Math.random()-.5)*Math.min(1000,syncBase*.3);
+  syncTimer=setTimeout(()=>{syncTimer=0;if(document.hidden){schedulePhpSync(syncBase);return}phpSync()},Math.max(0,(delay===undefined?syncBase:delay)+jitter));
+}
 // Open or closed, special, cap and sold out come from the database, so every phone and counter sees the same thing.
 function applyShops(m){
   if(outbox.length)return;
@@ -3241,9 +3247,13 @@ async function phpSync(){
   if(syncBusy||!getTok())return;
   const shopSide=MODE==='shop';
   if(shopSide?(!S.auth||S.role!=='admin'):!S.roll)return;
-  syncBusy=true;
+  clearTimeout(syncTimer);syncTimer=0;syncBusy=true;
+  const started=performance.now();let next=syncBase;
   try{
     const r=await php('GET',shopSide?'shop/'+S.auth+'/orders':'orders/mine');
+    const elapsed=performance.now()-started;
+    if(r.s===0||r.s===429||r.s>=500||elapsed>2500){syncFailures=Math.min(5,syncFailures+1);next=Math.min(30000,syncBase*Math.pow(2,syncFailures))}
+    else syncFailures=0;
     if(r.s===200&&Array.isArray(r.j.orders)){
       if(r.j.shops)applyShops(r.j.shops);
       if(shopSide){const rs=JSON.stringify(r.j.refunds||[]);if(rs!==ui.refSig){ui.refSig=rs;ui.refunds=r.j.refunds||[];softRender()}}
@@ -3253,7 +3263,11 @@ async function phpSync(){
       if(sig!==syncSig){syncSig=sig;S.orders=(shopSide?S.orders.filter(o=>o.shop!==S.auth):[]).concat(list);save();softRender()}
       if(moved)payMoved(moved);
     }
-  }finally{syncBusy=false}
+  }finally{
+    syncBusy=false;
+    if(syncFailures===0)next=Math.max(0,syncBase-(performance.now()-started));
+    schedulePhpSync(next);
+  }
 }
 // The shop answered: take the student to their order and tell them plainly.
 function payMoved(o){
@@ -4874,7 +4888,7 @@ if(USE_PHP){
   if(MODE==='student'&&getTok()&&S.role==='admin'&&!S.roll)toShopPage();
   else{phpRestore();autoSignIn()}
   php('GET','clock').then(r=>{if(r.s!==200)return;if(r.j.autoSms)ui.autoSms=true;if(r.j.noTimers)clockOff();if(r.j.noTimers||r.j.autoSms)softRender()});
-  setInterval(()=>{if(document.hidden)return;if(phpClock()&&!ui.lg)softRender();phpSync();
+  setInterval(()=>{if(document.hidden)return;if(phpClock()&&!ui.lg)softRender();
     if(MODE==='shop'&&S.role==='admin'&&getTok()){askPoll();if(ui.pk===undefined){ui.pk=null;pkLoad()}}
     if(MODE==='shop'&&S.auth&&S.role==='admin'){tick++;pullCusts(S.auth);if(location.hash==='#shop-pre')preLoad();if(location.hash==='#shop-sms'&&tick%4===0)smsLoad();if(location.hash==='#shop-records'&&tick%3===0)recLoad();if(location.hash==='#shop-analytics'&&tick%10===0)anLoad();if(location.hash==='#shop-counts'&&tick%6===0)cnLoad()}},MODE==='shop'?3000:5000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){phpClock();phpSync()}});
